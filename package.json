@@ -1,0 +1,62 @@
+{
+  "name": "@buildaureon/mcp",
+  "version": "0.1.1",
+  "description": "MCP server for AUREON Financial Compass: Financial Compass capital context for AI agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "aureon-mcp": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "examples"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
+    "test:e2e": "tsx tests/e2e-full.mjs",
+    "test:live-agent": "tsx tests/live-agent-exercise.mjs",
+    "verify": "tsx tests/verify-agent.ts"
+  },
+  "keywords": [
+    "aureon",
+    "mcp",
+    "model-context-protocol",
+    "robinhood-chain",
+    "financial-compass",
+    "ai-agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buildaureon/aureon-mcp"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@buildaureon/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "viem": "^2.55.0"
+  }
+}
