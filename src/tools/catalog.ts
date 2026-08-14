@@ -34,6 +34,9 @@ export const SDK_TOOL_NAMES = [
   "aureon_create_api_key",
   "aureon_revoke_api_key",
   "aureon_toggle_api_key",
+  "aureon_registry_status",
+  "aureon_get_objective_registry",
+  "aureon_prepare_objective_registry",
 ] as const;
 
 export const TOOL_COUNT = SDK_TOOL_NAMES.length;
