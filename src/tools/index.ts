@@ -8,6 +8,7 @@ import { registerObjectiveTools } from "./objectives.js";
 import { registerPortfolioTools } from "./portfolio.js";
 import { registerMarketTools } from "./market.js";
 import { registerDeveloperTools } from "./developer.js";
+import { registerRegistryTools } from "./registry.js";
 import { SDK_TOOL_NAMES, TOOL_COUNT } from "./catalog.js";
 
 export { SDK_TOOL_NAMES, TOOL_COUNT };
@@ -26,4 +27,5 @@ export function registerTools(
   registerPortfolioTools(server, client);
   registerMarketTools(server, client);
   registerDeveloperTools(server, client);
+  registerRegistryTools(server, client);
 }
