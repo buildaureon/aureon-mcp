@@ -19,7 +19,7 @@ export function registerCompassTools(server: McpServer, client: AureonClient) {
 
   server.tool(
     "aureon_run_execution",
-    "Run restorative execution for an objective currently outside policy",
+    "Run restorative execution for an objective outside policy. Read receipt.settlement and receipt.verifiedOnChain — staged = never on-chain; vault + verifiedOnChain = chain-observed; vault without verified = submitted but not yet observed.",
     { objectiveId: z.string().describe("The objective ID") },
     async ({ objectiveId }) => {
       try {
@@ -32,7 +32,7 @@ export function registerCompassTools(server: McpServer, client: AureonClient) {
 
   server.tool(
     "aureon_restore_objective",
-    "Run vault-backed restorative execution for an objective outside policy",
+    "Run vault-backed restorative execution for an objective outside policy. Returns ExecutionReceipt with settlement, verifiedOnChain, optional settlementRecord, explorerUrl, registryRef.",
     { objectiveId: z.string().describe("The objective ID") },
     async ({ objectiveId }) => {
       try {
@@ -45,7 +45,7 @@ export function registerCompassTools(server: McpServer, client: AureonClient) {
 
   server.tool(
     "aureon_list_executions",
-    "Recent execution receipts — past restorative actions taken",
+    "Recent execution receipts — read settlement, verifiedOnChain, settlementRecord, explorerUrl, registryRef.",
     { objectiveId: z.string().optional().describe("Filter by objective ID (omit for all)") },
     async ({ objectiveId }) => {
       try {
