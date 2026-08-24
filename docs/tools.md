@@ -6,7 +6,7 @@ Each tool maps to one public method on the `@buildaureon/sdk` client. Handlers v
 
 For request/response shapes, error codes, and HTTP contracts, see the **@buildaureon/sdk documentation**.
 
-**Tool count:** 34.
+**Tool count:** 43.
 
 **API:** `https://api.aureonlabs.network` (Robinhood Chain L2, early access).
 
@@ -47,8 +47,8 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | --- | --- |
 | Health | `aureon_ping` |
 | Auth & identity | `aureon_get_auth_nonce`, `aureon_verify_wallet`, `aureon_dev_login`, `aureon_logout`, `aureon_me` |
-| Dashboard & read | `aureon_get_overview`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` |
-| Objectives | `aureon_create_objective`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` |
+| Dashboard & read | `aureon_get_overview`, `aureon_get_allocation_vs_target`, `aureon_get_objective_portfolio_flow`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` |
+| Objectives | `aureon_create_objective`, `aureon_apply_financial_intent`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` |
 | Portfolio write | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` |
 | Execution | `aureon_run_execution`, `aureon_restore_objective` |
 | Market | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
@@ -147,6 +147,34 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 **When to use:** Morning checks; high-level status before diving into a single objective.
 
 **Caveats:** Overview is a summary. Drill into `aureon_get_health` / `aureon_get_objective` for policy decisions.
+
+### `aureon_get_allocation_vs_target`
+
+**Purpose:** Objective vs actual portfolio — current weight vs policy target per active objective, plus a green-book/off-plan paradox flag.
+
+**Typical args:** none.
+
+**When to use:** Update 2 demos; explain when the book is up but objectives are in warning/violation; avoid stitching overview + health manually.
+
+**Returns:** `{ rows, paradox, overview }` — see `@buildaureon/sdk` `getAllocationVsTarget()`.
+
+**Caveats:** Paradox detection uses 24h book change when available. Pair with `aureon_apply_market_event` (`autoRestore: false`) for rehearsal demos.
+
+### `aureon_get_objective_portfolio_flow`
+
+**Purpose:** Read AI → objective → portfolio flow for active objectives (intent summary, objective, health, portfolio snapshot).
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `objectiveId` | no | Filter to one objective; omit for all active |
+
+**When to use:** Update 3 — confirm intent is linked to live portfolio after `aureon_apply_financial_intent`; read-only refresh without creating a new objective.
+
+**Returns:** Array of flow objects — see `@buildaureon/sdk` `getObjectivePortfolioFlow()`.
+
+**Caveats:** Only active objectives are included. Pair with `aureon_get_allocation_vs_target` for ongoing objective vs actual tracking.
 
 ### `aureon_get_portfolio`
 
@@ -333,6 +361,28 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **Caveats:** Agents should use **Automatic** (`auto`) unless the human explicitly wants Manual Approve. To change symbol or mode later, create a new objective (pause or leave the old one).
 
+### `aureon_apply_financial_intent`
+
+**Purpose:** Register user/agent intent as an Automatic objective and return the full AI → objective → portfolio flow in one call.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `brief` | yes | What the user wants their money to do — agent-extracted wording |
+| `kind` | yes | `stable_allocation` \| `balanced_portfolio` \| `risk_ceiling` \| `reward_reinvestment` |
+| `targetWeight` | yes | 0–1 |
+| `tolerance` | yes | Drift band 0–1 |
+| `targetSymbol` | no | Asset symbol for `balanced_portfolio` |
+| `name` | no | Display name override |
+| `priority` | no | `low` \| `medium` \| `high` \| `critical` |
+
+**When to use:** Update 3 — turn structured agent intent into persistent policy without stitching create + health + portfolio calls.
+
+**Returns:** `{ intent, objective, health, portfolio, message }` — see `@buildaureon/sdk` `applyFinancialIntent()`.
+
+**Caveats:** Agent must supply structured fields; `brief` is for audit/teaching, not autonomous NLU. Creates a new objective each call.
+
 ### `aureon_update_objective`
 
 **Purpose:** Partial update of mutable fields (name, weight, tolerance, priority, optional risk/reinvest fields).
@@ -395,7 +445,38 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **When to use:** After a clear breach and a reviewed restore plan; Automatic objectives with a funded vault.
 
-**Caveats:** Empty vault or Manual-only product constraints can block or stage settlement. Confirm with `aureon_list_timeline` / `aureon_list_executions`.
+**Caveats:** Empty vault or Manual-only product constraints can block or stage settlement. Confirm with `aureon_list_timeline` / `aureon_list_executions`. Read `settlement`, `explorerUrl`, and `registryRef` on every receipt.
+
+### How to read a receipt (agents)
+
+1. Call `aureon_list_executions` or use the receipt from restore/run.
+2. Check **`settlement`**: `vault` vs `staged` — never claim on-chain for `staged`.
+3. If **`explorerUrl`** is present, the vault tx can be verified on the explorer.
+4. If **`registryRef`** is present, the objective was registered on ObjectiveRegistry.
+5. Match **`aureon_list_timeline`** events via `payload.executionId === receipt.id`.
+6. For vault receipts, check **`verifiedOnChain`**. When true, cite **`settlementRecord`** or call **`aureon_get_execution_settlement`**. Never invent chain proof when `verifiedOnChain` is false.
+
+### `aureon_get_execution_settlement`
+
+**Purpose:** Returns the durable on-chain settlement record for a vault execution when the API listener observed a `Rebalanced` event.
+
+**When to use:** After a vault restore when you need independent chain proof (tx hash, block, token pair, amounts).
+
+**Caveats:** Staged executions return `verifiedOnChain: false` with no settlement. Vault without listener confirmation is **not** chain-verified — say “vault submitted, not yet observed on-chain.”
+
+### `aureon_list_settlements`
+
+**Purpose:** Lists chain-verified settlement records for the wallet (optional `objectiveId` filter).
+
+**When to use:** Audit trail review; cross-check multiple restores.
+
+### `aureon_validate_receipt`
+
+**Purpose:** Validates an execution receipt locally (no API call). Returns `{ valid, issues }`.
+
+**When to use:** After `aureon_restore_objective` or `aureon_list_executions` — confirm the receipt is honest before reporting to the operator.
+
+**Caveats:** Validation is schema + policy only; it does not re-fetch chain state. If `valid: false`, quote `issues` and do not claim on-chain settlement.
 
 ---
 
@@ -550,4 +631,4 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - Prepare tools are safe to call with an API key; broadcasting is a separate host step.
 - When summarizing restores, always include settlement type when the receipt provides it.
 
-This reference is the canonical MCP tool surface for live agents: **34 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
+This reference is the canonical MCP tool surface for live agents: **43 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
