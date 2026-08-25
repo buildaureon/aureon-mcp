@@ -26,6 +26,19 @@ export function registerReadTools(server: McpServer, client: AureonClient) {
   );
 
   server.tool(
+    "aureon_get_allocation_vs_target",
+    "Objective vs actual portfolio — current weight vs policy target per objective, plus green-book/off-plan paradox flag",
+    {},
+    async () => {
+      try {
+        return ok(await client.getAllocationVsTarget());
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
     "aureon_get_portfolio",
     "Current capital book snapshot — positions, marks, weights",
     {},
