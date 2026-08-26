@@ -42,10 +42,13 @@ test("write tools are registered", async () => {
   const names = new Set(result.tools.map((t) => t.name));
   for (const tool of [
     "aureon_create_objective",
+    "aureon_apply_financial_intent",
+    "aureon_get_objective_portfolio_flow",
     "aureon_run_execution",
     "aureon_set_portfolio",
     "aureon_prepare_vault_deposit",
     "aureon_apply_market_event",
+    "aureon_get_allocation_vs_target",
     "aureon_create_api_key",
   ]) {
     assert.ok(names.has(tool), `missing ${tool}`);
