@@ -84,6 +84,26 @@ Restore and execution receipts may include:
 
 ---
 
+## How to read a Phase 2 receipt
+
+After `aureon_restore_objective` or `aureon_run_execution`, inspect the returned receipt:
+
+| Field | What to tell the operator |
+| --- | --- |
+| `settlement: "vault"` | Restored via vault keeper path; may have on-chain tx |
+| `verifiedOnChain: true` | Listener observed vault `Rebalanced` event — cite `settlementRecord` |
+| `verifiedOnChain: false` + `settlement: "vault"` | Vault path but **not yet** independently observed — do not claim chain proof |
+| `settlement: "staged"` | Capital-book update only — **not** on-chain settlement |
+| `explorerUrl` | Link to block explorer when vault tx exists |
+| `registryRef` | Objective registered on testnet registry — cite `objectiveKey` + contract |
+| `status` | `confirmed` / `failed` / etc. — do not infer success from prepare alone |
+
+Cross-check with `aureon_list_timeline`: find events where `payload.executionId` matches `receipt.id` and confirm `payload.settlement` matches the receipt.
+
+**Do not say:** “Every restore is on-chain.” Staged receipts are honest book updates when vault is unavailable or unfunded. Do not say “chain-verified” unless `verifiedOnChain` is true or `aureon_get_execution_settlement` returns a record. After every restore, call **`aureon_validate_receipt`** — if validation fails, report the issues and do not override them.
+
+---
+
 ## Recommended workflows
 
 ### A. Morning check
@@ -218,6 +238,47 @@ aureon_revoke_api_key
 ```
 
 Never paste full secrets into public transcripts if the host displays tool output broadly.
+
+### H. Green vs plan paradox demo (Update 2)
+
+```text
+aureon_set_portfolio          # or aureon_sync_portfolio
+aureon_create_objective       # stable_allocation, targetWeight 0.2, tolerance 0.02
+aureon_get_allocation_vs_target   # baseline: rows aligned
+aureon_apply_market_event
+  symbol: NVDA
+  priceChangeRatio: 0.45
+  autoRestore: false
+aureon_get_allocation_vs_target   # paradox: book up, stable off-plan
+aureon_get_health
+aureon_list_timeline
+```
+
+**Agent language**
+
+- Before shock: “Objective vs actual are aligned — stable sleeve at target.”
+- After shock with `autoRestore: false`: “Book is up {X}%, but your stable objective is at {current}% vs {target}% target — {state}. Portfolio performance and plan adherence are not the same signal.”
+- Do **not** claim on-chain proof for rehearsal marks; they are controlled and staged.
+
+### I. AI → objective → portfolio (Update 3)
+
+```text
+aureon_sync_portfolio
+aureon_apply_financial_intent
+  brief: "Keep about 20% in stable assets"
+  kind: stable_allocation
+  targetWeight: 0.2
+  tolerance: 0.02
+aureon_get_objective_portfolio_flow   # confirm intent → objective → portfolio link
+aureon_get_allocation_vs_target         # ties to Update 2 objective vs actual
+```
+
+**Agent language**
+
+- “You told me what you want your money to do. I registered that as an objective.”
+- “Here is how your portfolio scores against that policy — not just total PnL.”
+- The agent must still supply structured fields (`kind`, `targetWeight`, `tolerance`); `brief` captures user wording for audit and teaching.
+- After intent is applied, use `aureon_get_allocation_vs_target` for ongoing objective vs actual checks.
 
 ---
 
