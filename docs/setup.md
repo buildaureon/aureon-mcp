@@ -2,7 +2,7 @@
 
 Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.1` against the live AUREON API.
 
-This package is a **stdio** [Model Context Protocol](https://modelcontextprotocol.io) server. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **34 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
+This package is a **stdio** [Model Context Protocol](https://modelcontextprotocol.io) server. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **52 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
 
 Related docs: [Authentication](./auth.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -48,7 +48,7 @@ The MCP server never custodies funds and never signs chain transactions.
 | Version | `0.1.1` |
 | Depends on | `@buildaureon/sdk` |
 | Transport | stdio MCP (JSON-RPC over stdin/stdout) |
-| Tool count | 34 |
+| Tool count | 47 |
 | Live API | `https://api.aureonlabs.network` |
 | Console | [app.aureonlabs.network](https://app.aureonlabs.network) |
 
@@ -258,7 +258,7 @@ For write workflows (create objective, restore, prepare vault), see [./agent-gui
 
 ## Verify the tool surface
 
-A healthy install exposes auth, read, objective, portfolio, execution, market, vault prepare, and developer key tools — **34** in total.
+A healthy install exposes auth, read, objective, portfolio, execution, market, vault prepare, and developer key tools — **47** in total.
 
 You do not need every tool on day one. Start with:
 
