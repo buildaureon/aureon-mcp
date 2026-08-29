@@ -1,6 +1,6 @@
 # Authentication Guide
 
-How **`@buildaureon/mcp`** `v0.1.1` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **34** stdio tools.
+How **`@buildaureon/mcp`** `v0.1.1` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **43** stdio tools.
 
 Related docs: [Setup](./setup.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -247,7 +247,7 @@ Map structured SDK errors in tool output to the same categories; do not retry bl
 MCP host (Cursor / Claude)
     │  stdio
     ▼
-@buildaureon/mcp  (34 tools, no private key)
+@buildaureon/mcp  (52 tools, no private key)
     │
     ▼
 @buildaureon/sdk  (HTTP, retries, types)
