@@ -416,7 +416,7 @@ async function main() {
 }
 
 function printSummary() {
-  console.log("\n=== SUMMARY (all 34 MCP tools) ===");
+  console.log("\n=== SUMMARY (all MCP tools) ===");
   const pass = SDK_TOOL_NAMES.filter((t) => results[t] === "PASS").length;
   const fail = SDK_TOOL_NAMES.filter((t) => results[t] === "FAIL").length;
   const warn = SDK_TOOL_NAMES.filter((t) => results[t] === "WARN").length;
