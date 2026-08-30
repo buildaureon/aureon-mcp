@@ -25,6 +25,14 @@ export const SDK_TOOL_NAMES = [
   "aureon_create_objective",
   "aureon_apply_financial_intent",
   "aureon_get_objective_portfolio_flow",
+  "aureon_run_drift_restore_demo",
+  "aureon_get_drift_restore_flow",
+  "aureon_run_receipt_verification_demo",
+  "aureon_get_receipt_verification_flow",
+  "aureon_run_portfolio_watch_demo",
+  "aureon_get_portfolio_watch_flow",
+  "aureon_run_full_aureon_loop_demo",
+  "aureon_get_full_aureon_loop_flow",
   "aureon_update_objective",
   "aureon_pause_objective",
   "aureon_resume_objective",
@@ -43,6 +51,7 @@ export const SDK_TOOL_NAMES = [
   "aureon_get_execution_settlement",
   "aureon_list_settlements",
   "aureon_validate_receipt",
+  "aureon_get_audit_trail",
 ] as const;
 
 export const TOOL_COUNT = SDK_TOOL_NAMES.length;
