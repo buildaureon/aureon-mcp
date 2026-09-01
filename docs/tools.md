@@ -6,7 +6,7 @@ Each tool maps to one public method on the `@buildaureon/sdk` client. Handlers v
 
 For request/response shapes, error codes, and HTTP contracts, see the **@buildaureon/sdk documentation**.
 
-**Tool count:** 43.
+**Tool count:** 52.
 
 **API:** `https://api.aureonlabs.network` (Robinhood Chain L2, early access).
 
@@ -47,8 +47,8 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | --- | --- |
 | Health | `aureon_ping` |
 | Auth & identity | `aureon_get_auth_nonce`, `aureon_verify_wallet`, `aureon_dev_login`, `aureon_logout`, `aureon_me` |
-| Dashboard & read | `aureon_get_overview`, `aureon_get_allocation_vs_target`, `aureon_get_objective_portfolio_flow`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` |
-| Objectives | `aureon_create_objective`, `aureon_apply_financial_intent`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` |
+| Dashboard & read | `aureon_get_overview`, `aureon_get_allocation_vs_target`, `aureon_get_objective_portfolio_flow`, `aureon_get_drift_restore_flow`, `aureon_get_receipt_verification_flow`, `aureon_get_portfolio_watch_flow`, `aureon_get_full_aureon_loop_flow`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` |
+| Objectives | `aureon_create_objective`, `aureon_apply_financial_intent`, `aureon_run_drift_restore_demo`, `aureon_run_receipt_verification_demo`, `aureon_run_portfolio_watch_demo`, `aureon_run_full_aureon_loop_demo`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` |
 | Portfolio write | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` |
 | Execution | `aureon_run_execution`, `aureon_restore_objective` |
 | Market | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
@@ -154,7 +154,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **Typical args:** none.
 
-**When to use:** Update 2 demos; explain when the book is up but objectives are in warning/violation; avoid stitching overview + health manually.
+**When to use:** demos; explain when the book is up but objectives are in warning/violation; avoid stitching overview + health manually.
 
 **Returns:** `{ rows, paradox, overview }` — see `@buildaureon/sdk` `getAllocationVsTarget()`.
 
@@ -170,11 +170,131 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | --- | --- | --- |
 | `objectiveId` | no | Filter to one objective; omit for all active |
 
-**When to use:** Update 3 — confirm intent is linked to live portfolio after `aureon_apply_financial_intent`; read-only refresh without creating a new objective.
+**When to use:** — confirm intent is linked to live portfolio after `aureon_apply_financial_intent`; read-only refresh without creating a new objective.
 
 **Returns:** Array of flow objects — see `@buildaureon/sdk` `getObjectivePortfolioFlow()`.
 
 **Caveats:** Only active objectives are included. Pair with `aureon_get_allocation_vs_target` for ongoing objective vs actual tracking.
+
+### `aureon_run_drift_restore_demo`
+
+**Purpose:** Run drift → detection → restore demo in one call (seed book, create stable objective, NVDA rally with `autoRestore: false`, manual restore).
+
+**Typical args:** none.
+
+**When to use:** Content Arc Day 4; teach the full loop without stitching portfolio, market, plan, and restore tools.
+
+**Returns:** `DriftRestoreFlow` — see `@buildaureon/sdk` `runDriftRestoreDemo()`.
+
+**Caveats:** Mutates portfolio and creates a new objective. Settlement may be `vault` or `staged`. Controlled rehearsal — not discretionary trading.
+
+### `aureon_get_drift_restore_flow`
+
+**Purpose:** Read drift → detection → restore flow for active objectives (health, allocation row, restore plan when off-plan, latest receipt).
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `objectiveId` | no | Filter to one objective; omit for all active |
+
+**When to use:** Confirm three-beat arc after manual steps in workflow J; read-only monitoring.
+
+**Returns:** Array of `DriftRestoreFlow` — see `@buildaureon/sdk` `getDriftRestoreFlow()`.
+
+**Caveats:** Inferred phases when historical aligned/drift snapshots are not stored; pair with `aureon_list_timeline` for audit trail.
+
+### `aureon_run_receipt_verification_demo`
+
+**Purpose:** Run receipt → verification demo (drift-restore + validate receipt + settlement lookup + timeline).
+
+**Typical args:** none.
+
+**When to use:** Content Arc Day 5; teach claim vs validation vs chain proof without stitching restore, validate, and settlement tools.
+
+**Returns:** `ReceiptVerificationFlow` — see `@buildaureon/sdk` `runReceiptVerificationDemo()`.
+
+**Caveats:** Mutates portfolio via embedded drift-restore. Validator is local — does not re-query chain. Staged receipts validate but are not chain-verified.
+
+### `aureon_get_receipt_verification_flow`
+
+**Purpose:** Read receipt → verification flow for execution receipts (claim, validation result, settlement lookup, timeline).
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `executionId` | no | Filter to one execution; omit for five most recent |
+
+**When to use:** Confirm verification tier after manual steps in workflow K.
+
+**Returns:** Array of `ReceiptVerificationFlow` — see `@buildaureon/sdk` `getReceiptVerificationFlow()`.
+
+**Caveats:** Pair with `aureon_validate_receipt` for local checks; use `aureon_get_execution_settlement` for vault chain proof.
+
+### `aureon_run_portfolio_watch_demo`
+
+**Purpose:** Run portfolio watch demo (brief → Automatic objective → while-away market event with auto restore → return briefing).
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `brief` | no | User wording; default watch-while-away brief |
+| `host` | no | `cursor` \| `claude` \| `mcp` for briefing labels |
+
+**When to use:** Content Arc Day 6; Claude/Cursor + AUREON agent-in-host teaching.
+
+**Returns:** `PortfolioWatchFlow` — see `@buildaureon/sdk` `runPortfolioWatchDemo()`.
+
+**Caveats:** Mutates portfolio and objectives. Uses `autoRestore: true`. Not unsupervised trading — registered Automatic policy only.
+
+### `aureon_get_portfolio_watch_flow`
+
+**Purpose:** Read portfolio watch briefing for Automatic objectives.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `objectiveId` | no | Filter to one objective |
+| `brief` | no | User brief for summary lines |
+| `host` | no | Agent host label |
+
+**When to use:** Confirm briefing after manual steps in workflow L.
+
+**Returns:** Array of `PortfolioWatchFlow` — see `@buildaureon/sdk` `getPortfolioWatchFlow()`.
+
+### `aureon_run_full_aureon_loop_demo`
+
+**Purpose:** Run Content Arc full AUREON loop (intent → plan check with autoRestore false → restore → receipt verification).
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `brief` | no | User wording; default full-loop brief |
+
+**When to use:** Content Arc Day 7; positioning demo — not a portfolio tracker.
+
+**Returns:** `FullAureonLoopFlow` — see `@buildaureon/sdk` `runFullAureonLoopDemo()`.
+
+**Caveats:** Mutates portfolio. Uses `autoRestore: false` then manual restore. Staged receipts validate but are not chain-verified.
+
+### `aureon_get_full_aureon_loop_flow`
+
+**Purpose:** Read full AUREON loop for active objectives that already have an execution receipt.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `objectiveId` | no | Filter to one objective |
+| `brief` | no | User brief for teaching shape |
+
+**When to use:** Confirm closed loop after manual steps in workflow M.
+
+**Returns:** Array of `FullAureonLoopFlow` — see `@buildaureon/sdk` `getFullAureonLoopFlow()`.
 
 ### `aureon_get_portfolio`
 
@@ -377,7 +497,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | `name` | no | Display name override |
 | `priority` | no | `low` \| `medium` \| `high` \| `critical` |
 
-**When to use:** Update 3 — turn structured agent intent into persistent policy without stitching create + health + portfolio calls.
+**When to use:** turn structured agent intent into persistent policy without stitching create + health + portfolio calls.
 
 **Returns:** `{ intent, objective, health, portfolio, message }` — see `@buildaureon/sdk` `applyFinancialIntent()`.
 
@@ -592,6 +712,16 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **Caveats:** Toggled-off keys fail subsequent control-plane calls until re-enabled.
 
+### `aureon_get_audit_trail`
+
+**Purpose:** Export one objective’s financial audit trail — registry, receipts, settlements, timeline — in a single object.
+
+**Typical args:** `objectiveId` (required).
+
+**When to use:** “Did this restore actually happen?” / follow intent → receipt → settlement without stitching four tools.
+
+**Caveats:** Missing proof is labeled as a gap. Staged receipts are never on-chain. Do not invent explorer links or `verifiedOnChain`. Testnet only.
+
 ---
 
 ## Prompt → tool mapping
@@ -606,6 +736,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | “Why is health red?” | `aureon_get_health`, `aureon_list_timeline` |
 | “Show the restore plan” | `aureon_get_restore_plan` |
 | “Execute restore” | `aureon_restore_objective` |
+| “Export the audit trail” | `aureon_get_audit_trail` |
 | “Simulate −10% TSLA” | `aureon_apply_market_event` |
 | “Prepare 0.1 ETH deposit” | `aureon_prepare_vault_deposit` then host signs |
 | “Rotate my agent key” | `aureon_create_api_key` (+ secure store), optional `aureon_revoke_api_key` |
@@ -631,4 +762,4 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - Prepare tools are safe to call with an API key; broadcasting is a separate host step.
 - When summarizing restores, always include settlement type when the receipt provides it.
 
-This reference is the canonical MCP tool surface for live agents: **43 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
+This reference is the canonical MCP tool surface for live agents: **52 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
