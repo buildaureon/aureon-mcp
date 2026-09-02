@@ -4,7 +4,7 @@ Playbooks for AI agents using `@buildaureon/mcp` against the **live** AUREON API
 
 This guide teaches agents how to think, which tools to call, and how to talk honestly about settlement. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
 
-**Surface:** 34 tools · issued API key · optional Bearer · private key only outside MCP for broadcast.
+**Surface:** 52 tools · issued API key · optional Bearer · private key only outside MCP for broadcast.
 
 ---
 
@@ -239,7 +239,7 @@ aureon_revoke_api_key
 
 Never paste full secrets into public transcripts if the host displays tool output broadly.
 
-### H. Green vs plan paradox demo (Update 2)
+### H. Green vs plan paradox demo 
 
 ```text
 aureon_set_portfolio          # or aureon_sync_portfolio
@@ -260,7 +260,7 @@ aureon_list_timeline
 - After shock with `autoRestore: false`: “Book is up {X}%, but your stable objective is at {current}% vs {target}% target — {state}. Portfolio performance and plan adherence are not the same signal.”
 - Do **not** claim on-chain proof for rehearsal marks; they are controlled and staged.
 
-### I. AI → objective → portfolio (Update 3)
+### I. AI → objective → portfolio
 
 ```text
 aureon_sync_portfolio
@@ -270,7 +270,7 @@ aureon_apply_financial_intent
   targetWeight: 0.2
   tolerance: 0.02
 aureon_get_objective_portfolio_flow   # confirm intent → objective → portfolio link
-aureon_get_allocation_vs_target         # ties to Update 2 objective vs actual
+aureon_get_allocation_vs_target         # ties to objective vs actual
 ```
 
 **Agent language**
@@ -280,6 +280,109 @@ aureon_get_allocation_vs_target         # ties to Update 2 objective vs actual
 - The agent must still supply structured fields (`kind`, `targetWeight`, `tolerance`); `brief` captures user wording for audit and teaching.
 - After intent is applied, use `aureon_get_allocation_vs_target` for ongoing objective vs actual checks.
 
+### J. Drift → detection → restore
+
+```text
+aureon_set_portfolio          # or aureon_sync_portfolio
+aureon_create_objective       # stable_allocation, targetWeight 0.2, tolerance 0.02
+aureon_apply_market_event
+  symbol: NVDA
+  priceChangeRatio: 0.45
+  autoRestore: false          # break the rule on purpose
+aureon_get_health
+aureon_get_restore_plan
+aureon_restore_objective
+aureon_get_drift_restore_flow # confirm three-beat flow
+aureon_list_timeline
+```
+
+Or one-shot: `aureon_run_drift_restore_demo`.
+
+**Agent language**
+
+- Beat 1: “Rule set — stable sleeve at ~20% target.”
+- Beat 2: “NVDA rally moved the book. Stable allocation drifted off policy — {state}.”
+- Beat 3: “Restore plan executed. Receipt settlement is `{vault|staged}`. Health back within tolerance.”
+- Link back to  (`aureon_get_allocation_vs_target` with `autoRestore: false`) and  (intent before the rule exists).
+- Do **not** claim discretionary trading; this is controlled rehearsal against registered policy.
+
+### K. Receipt → verification 
+
+```text
+aureon_run_drift_restore_demo       # or aureon_restore_objective after drift
+aureon_list_executions
+aureon_validate_receipt             # local — must pass before claiming proof
+aureon_get_execution_settlement     # vault — independent chain record when present
+aureon_get_receipt_verification_flow
+aureon_list_timeline
+```
+
+Or one-shot: `aureon_run_receipt_verification_demo`.
+
+**Agent language**
+
+- Beat 1: “Restore returned a receipt — status `{status}`, result says `{result}`. That is a **claim**, not proof.”
+- Beat 2: “`aureon_validate_receipt` — schema + honesty check. If invalid, report issues; do not say success.”
+- Beat 3: “For vault receipts, `aureon_get_execution_settlement` — `verifiedOnChain: true` means independent settlement record. Staged receipts can validate but are **never** chain-verified.”
+- Link back to (receipt exists after restore). Never say “chain-verified” unless `verifiedOnChain` or settlement record confirms it.
+
+### L. Portfolio watch while away 
+
+```text
+aureon_ping
+aureon_me
+aureon_apply_financial_intent
+  brief: Watch my portfolio while I'm away — keep about 20% in stable assets.
+  kind: stable_allocation
+  targetWeight: 0.2
+  tolerance: 0.02
+aureon_refresh_watchdog
+aureon_get_health
+aureon_apply_market_event
+  symbol: NVDA
+  priceChangeRatio: 0.45
+  autoRestore: true
+aureon_list_timeline
+aureon_get_portfolio_watch_flow
+```
+
+Or one-shot: `aureon_run_portfolio_watch_demo`.
+
+**Agent language**
+
+- Beat 1: “You asked me to watch your portfolio while away. I registered that as an **Automatic** objective — not a blank check, a rule.”
+- Beat 2: “While you were away, the market moved. Automatic mode evaluated health and restored when off-plan.”
+- Beat 3: “Here is your return briefing — health, timeline, and what happened. Use tools if you need receipt verification.”
+- Host context: say **Cursor** or **Claude** when demoing agent-in-host; never claim 24/7 unsupervised trading.
+- Link back to (intent → objective) and (drift/restore with `autoRestore: false` vs **true** here).
+
+### M. Full AUREON loop 
+
+```text
+aureon_apply_financial_intent
+  brief: Keep about 20% in stable assets — grow the book without abandoning the plan.
+  kind: stable_allocation
+  targetWeight: 0.2
+  tolerance: 0.02
+aureon_get_allocation_vs_target
+aureon_apply_market_event
+  symbol: NVDA
+  priceChangeRatio: 0.45
+  autoRestore: false
+aureon_get_allocation_vs_target   # paradox — green book, off-plan
+aureon_restore_objective
+aureon_validate_receipt
+aureon_get_full_aureon_loop_flow
+```
+
+Or one-shot: `aureon_run_full_aureon_loop_demo`.
+
+**Agent language**
+
+- Positioning: “We're not building another portfolio tracker.”
+- Beat 1: Intent registered as policy — not a price chart goal.
+- Beat 2: Book can look fine while the plan fails — show paradox after shock.
+- Beat 3: Restore closes the loop; receipt must be validated before claiming success.
 ---
 
 ## Prompt examples
@@ -334,6 +437,7 @@ Avoid these failure modes.
 | Spamming restore | Flapping health, noisy timeline | Re-read health; restore once; confirm |
 | Calling market events “live prices” | Misleads capital decisions | Label as rehearsal |
 | Claiming `staged` as on-chain | Breaks trust | Quote `settlement` literally |
+| Inventing missing audit proof | Fake explorer / registry / settlement | Use `aureon_get_audit_trail` and report labeled gaps |
 | Asking for private keys | Violates the trust model | Prepare tools + host wallet only |
 | Clearing portfolio casually | Destructive book wipe | Confirm; prefer sync |
 | Rotating keys into chat | Secret leakage | Create key; instruct secure env storage |
@@ -403,7 +507,7 @@ No. It is for integration rehearsal and demos.
 
 ### How many tools are there?
 
-**34.** See the [tool reference](./tools.md).
+**47.** See the [tool reference](./tools.md).
 
 ### Where are the typed schemas?
 
