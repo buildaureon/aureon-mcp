@@ -64,7 +64,7 @@ npx -y @buildaureon/mcp
 | Rehearse market shocks | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
 | Manage developer API keys | `aureon_list_api_keys`, `aureon_create_api_key`, … |
 
-**34 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
+**52 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
 
 For scripts without MCP, use [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk). The operator app at [app.aureonlabs.network](https://app.aureonlabs.network) stays wallet-Bearer only.
 
@@ -234,13 +234,13 @@ Deep dive: [docs/auth.md](docs/auth.md).
 
 ## Tool Surface
 
-AUREON MCP exposes **34 tools** covering 100% of the `AureonClient` SDK surface:
+AUREON MCP exposes **52 tools** covering 100% of the `AureonClient` SDK surface:
 
 | Category | Count | Tools Included | Primary Purpose |
 | --- | --- | --- | --- |
 | **Health** | 1 | `aureon_ping` | Check API connectivity & backend watchdog state |
 | **Auth** | 5 | `aureon_get_auth_nonce`, `aureon_verify_wallet`, `aureon_dev_login`, `aureon_logout`, `aureon_me` | Manage wallet sessions, challenges, and identity |
-| **Read** | 11 | `aureon_get_overview`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` | Inspect portfolio allocations, health scores, timelines, and vault state |
+| **Read** | 12 | `aureon_get_overview`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status`, `aureon_get_audit_trail` | Inspect portfolio allocations, health scores, timelines, vault state, and the joined audit trail |
 | **Objectives** | 4 | `aureon_create_objective`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` | Create, modify, pause, and resume Financial Compass Objectives |
 | **Portfolio** | 3 | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` | Synchronize and manage live Capital Book asset marks |
 | **Execution** | 2 | `aureon_run_execution`, `aureon_restore_objective` | Trigger policy rebalancing and execute objective restore plans |
@@ -358,7 +358,7 @@ pnpm --filter @buildaureon/mcp typecheck
 | --- | --- |
 | **[Setup Guide](docs/setup.md)** | Step-by-step setup for Cursor, Claude Desktop, npx, building from source, and troubleshooting |
 | **[Authentication Guide](docs/auth.md)** | Issued API key vs. Wallet Bearer vs. private key boundaries |
-| **[Tools Reference](docs/tools.md)** | Full 34-tool reference with arguments, schemas, and caveats |
+| **[Tools Reference](docs/tools.md)** | Full 47-tool reference with arguments, schemas, and caveats |
 | **[Agent Playbooks](docs/agent-guide.md)** | End-to-end agent decision playbooks, turn templates, and anti-patterns |
 | **[Architecture Deep Dive](docs/architecture.md)** | Module boundaries, file maps, and end-to-end request data flows |
 | **[Security Model](docs/security.md)** | Credential management, threat modeling, and operational safety |
