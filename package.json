@@ -1,6 +1,6 @@
 {
   "name": "@buildaureon/mcp",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "MCP server for AUREON Financial Compass: Financial Compass capital context for AI agents",
   "type": "module",
   "main": "./dist/index.js",
