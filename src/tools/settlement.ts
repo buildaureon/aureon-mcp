@@ -21,13 +21,29 @@ export function registerSettlementTools(server: McpServer, client: AureonClient)
 
   server.tool(
     "aureon_list_settlements",
-    "Lists chain-verified settlement records for the authenticated wallet. Optional objectiveId filter.",
+    "Lists settlement records for the authenticated wallet. May include orphans (observed vault Rebalanced events not yet bound to an execution). Optional objectiveId filter. Read status and executionId before claiming proof.",
     {
       objectiveId: z.string().optional().describe("Filter by objective id"),
     },
     async ({ objectiveId }) => {
       try {
         return ok({ settlements: await client.listSettlements(objectiveId) });
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
+    "aureon_confirm_execution_settlement",
+    "Manual backfill: verify a vault Rebalanced transaction on chain and attach a settlement record to an execution. Use when the listener missed the event. Staged executions cannot be confirmed this way.",
+    {
+      executionId: z.string().describe("Execution receipt id"),
+      transactionHash: z.string().describe("0x vault Rebalanced transaction hash"),
+    },
+    async ({ executionId, transactionHash }) => {
+      try {
+        return ok(await client.confirmExecutionSettlement(executionId, transactionHash));
       } catch (err) {
         return fail(err);
       }
