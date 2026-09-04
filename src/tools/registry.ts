@@ -46,4 +46,20 @@ export function registerRegistryTools(server: McpServer, client: AureonClient) {
       }
     }
   );
+
+  server.tool(
+    "aureon_confirm_objective_registry",
+    "Confirms an on-chain ObjectiveRegistry registration after the host wallet broadcast the prepare tx. Pass the transaction hash. The API verifies the receipt on chain and stores the registry link.",
+    {
+      objectiveId: z.string().describe("Objective id that was registered"),
+      transactionHash: z.string().describe("0x transaction hash from the wallet broadcast"),
+    },
+    async ({ objectiveId, transactionHash }) => {
+      try {
+        return ok(await client.confirmObjectiveRegistry(objectiveId, transactionHash));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
 }
