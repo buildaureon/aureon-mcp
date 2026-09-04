@@ -320,6 +320,174 @@ async function main() {
     }
   }
 
+  // --- Phase 2 registry / receipts / settlement / audit ---
+  {
+    const status = await call(client, "aureon_registry_status");
+    mark(
+      "aureon_registry_status",
+      status.ok ? "PASS" : "FAIL",
+      status.ok ? `enabled=${JSON.parse(status.text).enabled}` : status.text
+    );
+  }
+
+  if (objectiveId) {
+    const before = await call(client, "aureon_get_objective_registry", { objectiveId });
+    mark(
+      "aureon_get_objective_registry",
+      before.ok ? "PASS" : "FAIL",
+      before.ok ? `registered=${JSON.parse(before.text).registered}` : before.text
+    );
+
+    const prep = await call(client, "aureon_prepare_objective_registry", { objectiveId });
+    if (!prep.ok) {
+      mark("aureon_prepare_objective_registry", "FAIL", prep.text);
+      mark("aureon_confirm_objective_registry", "SKIP", "prepare failed");
+    } else {
+      mark("aureon_prepare_objective_registry", "PASS", JSON.parse(prep.text).to);
+      try {
+        const plan = JSON.parse(prep.text);
+        const hashes = await broadcastSteps(wallet.account, [
+          { to: plan.to, data: plan.data, value: "0" },
+        ]);
+        const confirm = await call(client, "aureon_confirm_objective_registry", {
+          objectiveId,
+          transactionHash: hashes[0],
+        });
+        mark(
+          "aureon_confirm_objective_registry",
+          confirm.ok ? "PASS" : "FAIL",
+          confirm.ok ? hashes[0].slice(0, 14) : confirm.text
+        );
+      } catch (err) {
+        mark(
+          "aureon_confirm_objective_registry",
+          "WARN",
+          `broadcast/confirm: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+
+    const listed = await call(client, "aureon_list_settlements", { objectiveId });
+    mark(
+      "aureon_list_settlements",
+      listed.ok ? "PASS" : "FAIL",
+      listed.ok ? `${JSON.parse(listed.text).settlements?.length ?? 0} record(s)` : listed.text
+    );
+
+    const execs = await call(client, "aureon_list_executions", { objectiveId });
+    let executionId = "";
+    let receiptJson = null;
+    if (execs.ok) {
+      const rows = JSON.parse(execs.text);
+      const first = Array.isArray(rows) ? rows[0] : rows.executions?.[0];
+      if (first?.id) {
+        executionId = first.id;
+        receiptJson = first;
+      }
+    }
+
+    if (executionId) {
+      const settlement = await call(client, "aureon_get_execution_settlement", {
+        executionId,
+      });
+      mark(
+        "aureon_get_execution_settlement",
+        settlement.ok ? "PASS" : "FAIL",
+        settlement.ok
+          ? `verifiedOnChain=${JSON.parse(settlement.text).verifiedOnChain}`
+          : settlement.text
+      );
+      const confirmSettle = await call(client, "aureon_confirm_execution_settlement", {
+        executionId,
+        transactionHash: "0x" + "11".repeat(32),
+      });
+      mark(
+        "aureon_confirm_execution_settlement",
+        confirmSettle.ok ? "WARN" : "PASS",
+        confirmSettle.ok
+          ? "unexpected confirm without a real vault tx"
+          : "rejected without chain proof"
+      );
+    } else {
+      mark("aureon_get_execution_settlement", "SKIP", "no receipt");
+      mark("aureon_confirm_execution_settlement", "SKIP", "no receipt");
+    }
+
+    if (receiptJson) {
+      const validated = await call(client, "aureon_validate_receipt", {
+        receipt: receiptJson,
+      });
+      mark(
+        "aureon_validate_receipt",
+        validated.ok ? "PASS" : "FAIL",
+        validated.ok ? `valid=${JSON.parse(validated.text).valid}` : validated.text
+      );
+    } else {
+      mark("aureon_validate_receipt", "SKIP", "no receipt");
+    }
+
+    const trail = await call(client, "aureon_get_audit_trail", { objectiveId });
+    mark(
+      "aureon_get_audit_trail",
+      trail.ok ? "PASS" : "FAIL",
+      trail.ok ? JSON.parse(trail.text).message : trail.text
+    );
+  } else {
+    for (const t of [
+      "aureon_get_objective_registry",
+      "aureon_prepare_objective_registry",
+      "aureon_confirm_objective_registry",
+      "aureon_list_settlements",
+      "aureon_get_execution_settlement",
+      "aureon_confirm_execution_settlement",
+      "aureon_validate_receipt",
+      "aureon_get_audit_trail",
+    ]) {
+      mark(t, "SKIP", "no objective");
+    }
+  }
+
+  // --- remaining catalog tools (intent + demo flows) ---
+  {
+    const alloc = await call(client, "aureon_get_allocation_vs_target");
+    mark("aureon_get_allocation_vs_target", alloc.ok ? "PASS" : "FAIL", alloc.ok ? "ok" : alloc.text);
+  }
+  {
+    const intent = await call(client, "aureon_apply_financial_intent", {
+      brief: "Keep about 20 percent in stables for the Phase 2 MCP walk",
+      kind: "stable_allocation",
+      targetWeight: 0.2,
+      tolerance: 0.05,
+      name: "MCP Phase 2 intent",
+    });
+    mark(
+      "aureon_apply_financial_intent",
+      intent.ok ? "PASS" : "WARN",
+      intent.ok ? JSON.parse(intent.text).objective?.id ?? "applied" : intent.text
+    );
+  }
+  {
+    const flow = await call(client, "aureon_get_objective_portfolio_flow");
+    mark(
+      "aureon_get_objective_portfolio_flow",
+      flow.ok ? "PASS" : "WARN",
+      flow.ok ? "ok" : flow.text
+    );
+  }
+  for (const [tool, args] of [
+    ["aureon_run_drift_restore_demo", {}],
+    ["aureon_get_drift_restore_flow", {}],
+    ["aureon_run_receipt_verification_demo", {}],
+    ["aureon_get_receipt_verification_flow", {}],
+    ["aureon_run_portfolio_watch_demo", { brief: "Watch the book while away" }],
+    ["aureon_get_portfolio_watch_flow", {}],
+    ["aureon_run_full_aureon_loop_demo", { brief: "Keep 20 percent stable" }],
+    ["aureon_get_full_aureon_loop_flow", {}],
+  ]) {
+    const r = await call(client, tool, args);
+    mark(tool, r.ok ? "PASS" : "WARN", r.ok ? "ok" : r.text);
+  }
+
   // --- pause / resume ---
   if (objectiveId) {
     const pause = await call(client, "aureon_pause_objective", { objectiveId });
