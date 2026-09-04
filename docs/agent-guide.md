@@ -4,7 +4,7 @@ Playbooks for AI agents using `@buildaureon/mcp` against the **live** AUREON API
 
 This guide teaches agents how to think, which tools to call, and how to talk honestly about settlement. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
 
-**Surface:** 52 tools · issued API key · optional Bearer · private key only outside MCP for broadcast.
+**Surface:** 54 tools · issued API key · optional Bearer · private key only outside MCP for broadcast.
 
 ---
 
@@ -163,6 +163,25 @@ aureon_get_health
 ```
 
 Remind the operator that `targetSymbol` and `automationMode` are locked.
+
+### B2. Register the objective on chain
+
+Host wallet broadcasts. MCP never holds a private key.
+
+```text
+aureon_registry_status
+aureon_prepare_objective_registry
+  objectiveId: <id>
+# host signs and broadcasts the returned calldata
+aureon_confirm_objective_registry
+  objectiveId: <id>
+  transactionHash: 0x…
+aureon_get_objective_registry
+```
+
+Do not say the objective is on chain until confirm returns a record.
+
+Practical close script (host signs outside MCP): `pnpm --filter @buildaureon/mcp test:phase2` against a Phase 2 API.
 
 ### C. Restore drift
 
