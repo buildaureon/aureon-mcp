@@ -64,7 +64,7 @@ npx -y @buildaureon/mcp
 | Rehearse market shocks | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
 | Manage developer API keys | `aureon_list_api_keys`, `aureon_create_api_key`, … |
 
-**52 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
+**54 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
 
 For scripts without MCP, use [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk). The operator app at [app.aureonlabs.network](https://app.aureonlabs.network) stays wallet-Bearer only.
 
@@ -234,7 +234,7 @@ Deep dive: [docs/auth.md](docs/auth.md).
 
 ## Tool Surface
 
-AUREON MCP exposes **52 tools** covering 100% of the `AureonClient` SDK surface:
+AUREON MCP exposes **54 tools** covering 100% of the `AureonClient` SDK surface:
 
 | Category | Count | Tools Included | Primary Purpose |
 | --- | --- | --- | --- |
