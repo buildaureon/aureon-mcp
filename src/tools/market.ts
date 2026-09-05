@@ -12,7 +12,7 @@ export function registerMarketTools(server: McpServer, client: AureonClient) {
       priceChangeRatio: z.number().describe("Fractional price change (e.g. -0.15 = -15%)"),
       name: z.string().optional().describe("Event label"),
       description: z.string().optional().describe("Event description"),
-      autoRestore: z.boolean().optional().describe("Run restorative execution if objectives breach"),
+      autoRestore: z.boolean().optional().describe("Opt in to run restore if objectives breach. Omit or false = drift only. Automatic still 409s if the vault cannot execute."),
     },
     async (input) => {
       try {
