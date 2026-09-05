@@ -559,13 +559,13 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 ### `aureon_restore_objective`
 
-**Purpose:** Run vault-backed restorative execution for an objective outside policy (primary agent restore path).
+**Purpose:** Run restorative execution for an objective outside policy. Not always vault-backed.
 
 **Typical args:** `objectiveId` (required).
 
-**When to use:** After a clear breach and a reviewed restore plan; Automatic objectives with a funded vault.
+**When to use:** After a clear breach and a reviewed restore plan.
 
-**Caveats:** Empty vault or Manual-only product constraints can block or stage settlement. Confirm with `aureon_list_timeline` / `aureon_list_executions`. Read `settlement`, `explorerUrl`, and `registryRef` on every receipt.
+**Caveats:** Automatic + configured vault that cannot execute returns 409 — it does not stage a fake restore. Manual may stage. Empty vault blocks Automatic on-chain restore. Confirm with `aureon_list_timeline` / `aureon_list_executions`. Read `settlement`, `verifiedOnChain`, `explorerUrl`, and `registryRef` on every receipt.
 
 ### How to read a receipt (agents)
 
@@ -586,9 +586,9 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 ### `aureon_list_settlements`
 
-**Purpose:** Lists chain-verified settlement records for the wallet (optional `objectiveId` filter).
+**Purpose:** Lists settlement records for the wallet (optional `objectiveId` filter). May include orphans — observed vault events not yet bound to an execution.
 
-**When to use:** Audit trail review; cross-check multiple restores.
+**When to use:** Audit trail review; cross-check multiple restores. Read `status` and `executionId` before claiming proof.
 
 ### `aureon_validate_receipt`
 
@@ -762,4 +762,4 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - Prepare tools are safe to call with an API key; broadcasting is a separate host step.
 - When summarizing restores, always include settlement type when the receipt provides it.
 
-This reference is the canonical MCP tool surface for live agents: **52 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
+This reference is the canonical MCP tool surface for live agents: **54 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
