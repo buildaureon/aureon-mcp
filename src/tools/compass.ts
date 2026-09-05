@@ -32,7 +32,7 @@ export function registerCompassTools(server: McpServer, client: AureonClient) {
 
   server.tool(
     "aureon_restore_objective",
-    "Run vault-backed restorative execution for an objective outside policy. Returns ExecutionReceipt with settlement, verifiedOnChain, optional settlementRecord, explorerUrl, registryRef.",
+    "Run restorative execution for an objective outside policy. Not always vault-backed: read settlement and verifiedOnChain. staged is never on-chain. vault without verifiedOnChain is submitted, not proven. Returns ExecutionReceipt.",
     { objectiveId: z.string().describe("The objective ID") },
     async ({ objectiveId }) => {
       try {
