@@ -48,8 +48,10 @@ export const SDK_TOOL_NAMES = [
   "aureon_registry_status",
   "aureon_get_objective_registry",
   "aureon_prepare_objective_registry",
+  "aureon_confirm_objective_registry",
   "aureon_get_execution_settlement",
   "aureon_list_settlements",
+  "aureon_confirm_execution_settlement",
   "aureon_validate_receipt",
   "aureon_get_audit_trail",
 ] as const;
