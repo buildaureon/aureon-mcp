@@ -2,7 +2,7 @@
 
 Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.1` against the live AUREON API.
 
-This package is a **stdio** [Model Context Protocol](https://modelcontextprotocol.io) server. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **52 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
+This package is a **stdio** [Model Context Protocol](https://modelcontextprotocol.io) server. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **54 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
 
 Related docs: [Authentication](./auth.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
