@@ -247,7 +247,7 @@ Map structured SDK errors in tool output to the same categories; do not retry bl
 MCP host (Cursor / Claude)
     │  stdio
     ▼
-@buildaureon/mcp  (52 tools, no private key)
+@buildaureon/mcp  (54 tools, no private key)
     │
     ▼
 @buildaureon/sdk  (HTTP, retries, types)
