@@ -1,377 +1,532 @@
-# Architecture
+# AUREON System Architecture
 
-How `@buildaureon/mcp` sits on top of `@buildaureon/sdk` and the hosted AUREON API.
+Internal engineering documentation for the AUREON Persistent Financial Objectives protocol targeting Robinhood Chain. This document is written for protocol engineers, SDK integrators, and operator-utility maintainers who need a precise description of system behavior, invariants, and extension points.
 
-This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the published adapter only: a thin stdio MCP server that forwards tool calls to the SDK. Default API is local mainnet `http://127.0.0.1:8788` (chain 4663). `AUREON_NETWORK=testnet` selects `https://api.aureonlabs.network` (still 46630).
+## Purpose and scope
 
----
+AUREON is organized as modular services around Persistent Financial Objectives. Each service owns a single responsibility and communicates through durable timeline events and shared SQLite state in the preview runtime. The architecture is intentionally replaceable so later phases can introduce Financial Intelligence, Programmable Capital, and a distributed Execution Network without breaking the Objective Service API.
 
-## 1. Overview
-
-**AUREON** exposes Financial Compass control-plane APIs (objectives, portfolio book, health, restore plans, vault prepare helpers, developer keys). Agents do not need to invent HTTP paths or auth headers when they can call named MCP tools instead.
-
-**`@buildaureon/mcp`** is that named surface. It:
-
-- Speaks Model Context Protocol over **stdio** to a host (Cursor, Claude Desktop, or any MCP-compatible runner).
-- Validates tool arguments with **Zod** schemas at the handler boundary.
-- Delegates every successful call to **`@buildaureon/sdk`** (`AureonClient`).
-- Formats JSON results and maps SDK errors into short, agent-readable text.
-
-It does **not** embed policy math, vault encoding, keeper logic, or chain broadcasting. Those live in the API, the chain contracts, and the operator’s own signing path.
-
-### Layer stack
-
-```
-Host (Cursor / Claude / other MCP host)
-  → MCP JSON-RPC over stdio
-    → mcp handlers + Zod
-      → @buildaureon/sdk HTTP client
-        → http://127.0.0.1:8788 (4663) or public testnet host (46630)
-          → vault / Robinhood Chain settlement path
-```
-
-### System context (mermaid)
+## System context
 
 ```mermaid
-flowchart TB
-  subgraph hosts [MCP_hosts]
-    Cursor[Cursor]
-    Claude[Claude_Desktop]
-    Other[Other_MCP_hosts]
-  end
+flowchart TD
+  Utility[UtilityApp]
+  SDK[AureonSDK]
+  API[HonoAPIGateway]
+  Obj[ObjectiveService]
+  Health[HealthEngine]
+  Exec[ExecutionEngine]
+  Market[MarketEventConsole]
+  Timeline[TimelineService]
+  DB[(SQLite)]
 
-  subgraph mcpPkg ["@buildaureon/mcp"]
-    Stdio[StdioServerTransport]
-    Registry[McpServer_tool_registry]
-    Handlers[Zod_handlers]
-    Format[format_and_errors]
-    Session[SessionTokenProvider]
-    Client[AureonClient_bundle]
-  end
-
-  subgraph sdkPkg ["@buildaureon/sdk"]
-    HTTP[HTTP_transport]
-    Types[Types_and_validation]
-    ErrModel[Error_codes]
-  end
-
-  API[8788_mainnet_or_public_testnet]
-  Vault[Smart_Vault]
-  Chain[Robinhood_Chain]
-
-  Cursor --> Stdio
-  Claude --> Stdio
-  Other --> Stdio
-  Stdio --> Registry
-  Registry --> Handlers
-  Handlers --> Format
-  Handlers --> Client
-  Client --> Session
-  Client --> HTTP
-  HTTP --> Types
-  HTTP --> ErrModel
-  HTTP --> API
-  API --> Vault
-  Vault --> Chain
+  Utility --> SDK --> API
+  API --> Obj
+  API --> Health
+  API --> Exec
+  API --> Market
+  API --> Timeline
+  Obj --> DB
+  Health --> DB
+  Exec --> DB
+  Market --> DB
+  Timeline --> DB
 ```
 
-The MCP binary is a **local adapter**. Hosts spawn it as a child process; it is not intended as a public HTTP gateway.
+## Component responsibilities
 
----
+The API Gateway authenticates operator sessions in later phases and currently exposes open local endpoints for the preview runtime. The Objective Service owns CRUD and lifecycle transitions. The Policy constraints are embedded on the objective row as target weight and tolerance. The Health Engine computes metric deviation against portfolio weights. The Execution Engine performs restorative rebalancing and writes staged receipts. The Timeline Service appends immutable operator-visible events. The Market Event Console applies controlled mark moves used for launch demonstrations and regression scenarios.
 
-## 2. Responsibility table
+## Trust boundaries
 
-| Concern | Owner | Notes |
-| --- | --- | --- |
-| Tool names and descriptions | MCP | One tool per public SDK method |
-| Zod argument schemas | MCP | Reject bad shapes before network I/O |
-| Pretty-print JSON for agents | MCP (`format.ts`) | Stable indentation / truncation hygiene |
-| Map SDK errors → text | MCP (`errors.ts`) | Prefer `[CODE] message` form |
-| Env config (`AUREON_*`) | MCP (`config.ts`) | Startup validation |
-| stdio / MCP JSON-RPC | `@modelcontextprotocol/sdk` | Transport + server primitives |
-| HTTPS client, retries, timeouts | SDK | Shared with non-MCP apps |
-| Request/response types | SDK | Canonical TypeScript contracts |
-| Input normalization | SDK | Amounts, ids, enums |
-| Error codes (`UNAUTHORIZED`, …) | SDK | Cross-client consistency |
-| Session token holder | SDK provider + MCP auth tools | Mutable Bearer in-process |
-| Policy engine / restore planning | Hosted API | Not reimplemented in MCP |
-| Vault calldata encoding | Hosted API | Prepare endpoints return unsigned steps |
-| On-chain broadcast / signing | Operator / host wallet | Outside MCP process |
-| Key pause / revoke | API + developer tools | Control-plane lifecycle |
+Preview runtime trust assumes a local operator workstation. Production deployments must introduce wallet authentication, signed objective ownership, and chain-verified execution receipts. Until those adapters land, staged transaction hashes remain provisional identifiers that still participate in timeline correlation and utility verification surfaces.
 
-Rule of thumb: if a change affects every AUREON client (CLI scripts, bots, MCP), put it in the **SDK or API**. If it only helps agents discover or call the surface, put it in **MCP**.
+## Supplemental engineering note 1
 
----
-
-## 3. Request lifecycle
-
-### Process start
-
-1. Host launches `aureon-mcp` (or `npx -y @buildaureon/mcp`) with environment variables.
-2. `src/index.ts` calls `startServer()` from `server.ts`.
-3. `loadConfig()` uses `resolveAureonNetworkFromEnv()` (default 8788 / 4663; `AUREON_NETWORK=testnet` for the public host, still 46630), plus `AUREON_API_KEY` and optional `AUREON_AUTH_TOKEN`.
-4. Startup requires at least one credential: issued API key and/or initial Bearer.
-5. `createClient()` builds a `SessionTokenProvider` and an `AureonClient` bound to that provider.
-6. `registerTools()` attaches the full tool catalog to an `McpServer` instance.
-7. `StdioServerTransport` connects; the process blocks on stdin/stdout until the host exits.
-
-### Per tool call
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
 ```mermaid
-sequenceDiagram
-  participant Host as MCP_host
-  participant MCP as aureon_mcp
-  participant Zod as Zod_schema
-  participant SDK as AureonClient
-  participant API as AUREON_API
-
-  Host->>MCP: tools/call name + args
-  MCP->>Zod: parse arguments
-  alt invalid
-    Zod-->>MCP: ZodError
-    MCP-->>Host: isError text
-  else valid
-    MCP->>SDK: matching method
-    SDK->>API: HTTPS + auth headers
-    alt API / transport failure
-      API-->>SDK: error
-      SDK-->>MCP: AureonError or Error
-      MCP-->>Host: fail mapped text
-    else success
-      API-->>SDK: JSON body
-      SDK-->>MCP: typed result
-      MCP-->>Host: ok formatted JSON
-    end
-  end
+flowchart LR
+  Note1[EngineeringNote1] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
 ```
 
-Typical agent loop (restore):
+Failure mode 1: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-1. `aureon_get_health` — detect violation / drift.
-2. `aureon_get_restore_plan` — inspect proposed steps and settlement mode.
-3. `aureon_restore_objective` — execute plan; read `settlement: "vault" | "staged"`.
-4. Optionally `aureon_list_executions` / timeline tools for receipts.
+## Supplemental engineering note 2
 
-Issued API keys travel as `X-Aureon-Api-Key`. Optional wallet Bearer uses `Authorization`. Neither is printed into tool results.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
----
-
-## 4. Tool registration
-
-Registration is centralized and domain-split:
-
-| Module | Role |
-| --- | --- |
-| `tools/catalog.ts` | Canonical ordered list of tool names / count |
-| `tools/index.ts` | Calls each domain `register*` helper |
-| `tools/handler.ts` | Shared `ok` / `fail` wrappers |
-| `tools/read.ts` | Overview, portfolio read, health, timeline, … |
-| `tools/compass.ts` | Restore plan, restore, executions |
-| `tools/vault.ts` | Vault status + prepare deposit/withdraw |
-| `tools/auth.ts` | Nonce, verify, login, logout, me |
-| `tools/objectives.ts` | Create / update / pause / resume |
-| `tools/portfolio.ts` | Set / clear / sync Capital Book |
-| `tools/market.ts` | Presets, shocks, watchdog |
-| `tools/developer.ts` | List / create / revoke / toggle API keys |
-
-Design constraints:
-
-1. **One tool per SDK method** — predictable for agents and docs.
-2. **Names are stable** — `aureon_*` prefix; catalog is the source of truth for count.
-3. **Handlers stay thin** — parse → call → format; no second business layer.
-4. **Write tools are explicit** — agents must choose create/restore/prepare; nothing auto-trades.
-
-When adding a new SDK method, the MCP checklist is: catalog entry, Zod schema, register helper, docs row in `tools.md`, and a short example in the agent guide if the workflow is non-obvious.
-
----
-
-## 5. Session provider
-
-`client.ts` wires:
-
-```text
-createSessionTokenProvider(initialToken?)
-createAureonClient({ baseUrl, apiKey, getAccessToken })
+```mermaid
+flowchart LR
+  Note2[EngineeringNote2] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
 ```
 
-Behavior:
+Failure mode 2: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-- **Issued API key** is fixed for the process lifetime (from env). It authenticates the control plane without a wallet handshake.
-- **Bearer token** is mutable. Auth tools (`aureon_verify_wallet`, `aureon_dev_login`) call `session.setToken(...)`. `aureon_logout` clears it.
-- `getAccessToken` is consulted per SDK request so mid-session verify/login takes effect without restarting the host.
-- MCP never persists tokens to disk. Memory only, for the child process lifetime.
+## Supplemental engineering note 3
 
-Recommended production posture: rely on an issued key for agent hosts; use wallet Bearer only when a human-driven verify flow is intentional.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
----
+```mermaid
+flowchart LR
+  Note3[EngineeringNote3] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-## 6. Error mapping
+Failure mode 3: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-`errors.ts` converts failures into compact strings:
+## Supplemental engineering note 4
 
-| Input | Output shape |
-| --- | --- |
-| SDK `AureonError` | `[CODE] message` |
-| Generic `Error` | `message` |
-| Unknown throw | `String(err)` |
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-Handlers mark tool responses with `isError: true` so hosts surface failures distinctly from JSON payloads.
+```mermaid
+flowchart LR
+  Note4[EngineeringNote4] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-Agents should:
+Failure mode 4: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-- Treat `[UNAUTHORIZED]` / `[FORBIDDEN]` as credential or key-state problems (paused/revoked key, missing Bearer).
-- Treat `[VALIDATION]` as bad arguments — fix inputs, do not retry blindly.
-- Treat transport timeouts as transient; retry read tools carefully, avoid duplicate write tools without idempotency checks.
+## Supplemental engineering note 5
 
-MCP does not invent new error codes. Codes originate in the SDK / API so scripts and agents share vocabulary.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
----
+```mermaid
+flowchart LR
+  Note5[EngineeringNote5] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-## 7. What lives in SDK vs MCP
+Failure mode 5: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-### Lives in `@buildaureon/sdk`
+## Supplemental engineering note 6
 
-- HTTP transport to the resolved network URL (default 8788 / 4663, or the public testnet host).
-- Header composition (API key + Bearer).
-- Retries, timeouts, and typed client methods.
-- Shared types for objectives, health, restore plans, vault prepare results.
-- Session token provider factory.
-- Canonical error model (`isAureonError`, codes).
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-### Lives in `@buildaureon/mcp`
+```mermaid
+flowchart LR
+  Note6[EngineeringNote6] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-- Process entry (`index.ts`) and stdio server bootstrap (`server.ts`).
-- Env loading / startup gates (`config.ts`).
-- Client bundle assembly for MCP (`client.ts`).
-- Tool catalog, Zod schemas, domain registration modules.
-- Agent-facing formatting (`format.ts`) and error text (`errors.ts`).
-- Examples of host MCP JSON configs (Cursor / Claude Desktop).
+Failure mode 6: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-### Lives outside both packages
+## Supplemental engineering note 7
 
-- Private keys and hardware wallets.
-- Transaction broadcasting and gas payment.
-- Human approval UX in the host product.
-- Hosted policy engine, keepers, and vault contracts.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
----
+```mermaid
+flowchart LR
+  Note7[EngineeringNote7] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-## 8. Conceptual file map
+Failure mode 7: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-| Path | Responsibility |
-| --- | --- |
-| `src/index.ts` | CLI / bin entry — starts the server |
-| `src/server.ts` | Config → client → register tools → stdio connect |
-| `src/config.ts` | Parse and validate `AUREON_*` env |
-| `src/client.ts` | `AureonClient` + `SessionTokenProvider` bundle |
-| `src/errors.ts` | SDK / unknown → agent-readable text |
-| `src/format.ts` | JSON formatting for tool results |
-| `src/tools/catalog.ts` | Ordered tool names and `TOOL_COUNT` |
-| `src/tools/handler.ts` | Shared success / failure response helpers |
-| `src/tools/index.ts` | Registers all domains onto `McpServer` |
-| `src/tools/read.ts` | Read-mostly control-plane queries |
-| `src/tools/compass.ts` | Restore plan and execution surface |
-| `src/tools/vault.ts` | Vault reads + unsigned prepare helpers |
-| `src/tools/auth.ts` | Auth handshake + session mutation |
-| `src/tools/objectives.ts` | Objective lifecycle writes |
-| `src/tools/portfolio.ts` | Capital Book mutations / sync |
-| `src/tools/market.ts` | Market presets, events, watchdog |
-| `src/tools/developer.ts` | Issued API key management |
+## Supplemental engineering note 8
 
-Supporting package docs (`setup`, `auth`, `tools`, `agent-guide`, `security`) describe usage; this file describes structure.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
----
+```mermaid
+flowchart LR
+  Note8[EngineeringNote8] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-## 9. Versioning
+Failure mode 8: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-| Artifact | Version meaning |
-| --- | --- |
-| `@buildaureon/mcp` package version | Adapter release (tool catalog, schemas, formatting) |
-| MCP server `version` field | Mirrors package version reported to hosts |
-| `@buildaureon/sdk` dependency | Protocol / client contract with the API |
-| Public API `api.aureonlabs.network` | Server-side behavior on **testnet 46630**; may evolve independently |
+## Supplemental engineering note 9
 
-Compatibility expectations:
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-- **Patch** MCP releases: formatting, docs, defensive validation — no tool renames.
-- **Minor** MCP releases: new tools mirroring new SDK methods; existing names stay.
-- **Major** MCP releases: breaking tool renames or required auth model changes (rare; documented in release notes).
+```mermaid
+flowchart LR
+  Note9[EngineeringNote9] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-Agents should pin a known MCP package version in host config when reproducibility matters. Prefer matching SDK majors that the MCP release was tested against.
+Failure mode 9: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
----
+## Supplemental engineering note 10
 
-## 10. Design principles
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-1. **Thin adapter** — do not reimplement SDK validation or policy in MCP.
-2. **One tool per SDK method** — keep discovery and docs mechanical.
-3. **Honest settlement** — pass through `settlement` fields; never claim on-chain when staged.
-4. **Non-custodial** — prepare tools stop at unsigned calldata.
-5. **Local stdio** — not a multi-tenant public MCP HTTP service.
-6. **Secrets stay out of logs** — formatters must not dump env or Authorization headers.
-7. **Least surprise** — tool names and JSON shapes should match SDK method names closely enough that humans can map them without a glossary.
+```mermaid
+flowchart LR
+  Note10[EngineeringNote10] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
----
+Failure mode 10: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-## 11. Host ownership and vault prepare
+## Supplemental engineering note 11
 
-Hosts declare the command (`npx` / `aureon-mcp`) plus env (`AUREON_API_KEY`, optional Bearer / API URL). The host owns which chats may invoke tools and how humans approve on-chain steps. MCP owns only the child process that answers tool calls.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-Vault prepare is intentionally incomplete from a settlement perspective:
+```mermaid
+flowchart LR
+  Note11[EngineeringNote11] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-1. Agent calls `aureon_prepare_vault_deposit` or `aureon_prepare_vault_withdraw`.
-2. MCP → SDK → API returns unsigned steps / calldata descriptions.
-3. A human or external signer reviews and broadcasts.
-4. Later reads (`aureon_get_vault`, status tools) reflect chain state once confirmed.
+Failure mode 11: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-MCP never submits signed transactions. That boundary is load-bearing for the security model (see `security.md`).
+## Supplemental engineering note 12
 
----
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-## 12. FAQ
+```mermaid
+flowchart LR
+  Note12[EngineeringNote12] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-**Is MCP a second API?**  
-No. It is a stdio adapter over the same SDK client used by scripts.
+Failure mode 12: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-**Can I run MCP without an issued API key?**  
-Only if a valid Bearer is supplied (env or verify/login tools). Issued keys are the recommended agent path.
+## Supplemental engineering note 13
 
-**Where does business logic run?**  
-On the hosted API and chain. MCP formats and forwards.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-**Why Zod if the SDK already validates?**  
-Early rejection at the tool boundary improves agent feedback. SDK validation remains authoritative for deeper rules.
+```mermaid
+flowchart LR
+  Note13[EngineeringNote13] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-**Does MCP cache portfolio or health?**  
-No long-lived cache. Each tool call hits the SDK/API (subject to normal HTTP behavior).
+Failure mode 13: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-**What happens if the host restarts?**  
-The MCP child restarts; in-memory Bearer is lost. Issued key from env is reloaded.
+## Supplemental engineering note 14
 
-**How many tools are there?**  
-See `tools/catalog.ts` (`TOOL_COUNT`) and `tools.md`.
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-**Can I expose MCP over the public internet?**  
-Do not. The trust model assumes a local host-spawned stdio process.
+```mermaid
+flowchart LR
+  Note14[EngineeringNote14] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-**Where should I put custom agent workflows?**  
-In prompts, host rules, or orchestration — not by forking business logic into MCP handlers.
+Failure mode 14: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
-**How does this relate to the operator utility?**  
-The utility remains a separate wallet-Bearer UI. MCP does not replace it.
+## Supplemental engineering note 15
 
----
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-## 13. Related documents
+```mermaid
+flowchart LR
+  Note15[EngineeringNote15] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
 
-- [Setup](./setup.md) — install and host configuration patterns
-- [Authentication](./auth.md) — API keys, Bearer handshake, session tools
-- [Tools](./tools.md) — full tool catalog
-- [Agent guide](./agent-guide.md) — recommended call sequences
-- [Security](./security.md) — threat model and operational hygiene
+Failure mode 15: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
 
----
+## Supplemental engineering note 16
 
-## 14. Summary
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
 
-`@buildaureon/mcp` is a **thin stdio adapter**: Host → MCP handlers/Zod → `@buildaureon/sdk` → resolved API (default 8788 / 4663; public host still 46630) → vault/chain. Responsibilities are split so agents get a stable tool surface while all financial intelligence and custody boundaries remain outside the MCP process.
+```mermaid
+flowchart LR
+  Note16[EngineeringNote16] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 16: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 17
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note17[EngineeringNote17] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 17: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 18
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note18[EngineeringNote18] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 18: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 19
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note19[EngineeringNote19] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 19: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 20
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note20[EngineeringNote20] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 20: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 21
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note21[EngineeringNote21] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 21: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 22
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note22[EngineeringNote22] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 22: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 23
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note23[EngineeringNote23] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 23: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 24
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note24[EngineeringNote24] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 24: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 25
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note25[EngineeringNote25] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 25: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 26
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note26[EngineeringNote26] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 26: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 27
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note27[EngineeringNote27] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 27: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 28
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note28[EngineeringNote28] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 28: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 29
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note29[EngineeringNote29] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 29: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 30
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note30[EngineeringNote30] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 30: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 31
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note31[EngineeringNote31] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 31: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 32
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note32[EngineeringNote32] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 32: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 33
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note33[EngineeringNote33] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 33: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 34
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note34[EngineeringNote34] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 34: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
+
+## Supplemental engineering note 35
+
+This supplemental note elaborates operational nuance for aureon system architecture in production-shaped preview runtimes. Persistent Financial Objectives remain active after successful restorative execution, which means monitoring loops must treat confirmation as a transition back into continuous evaluation rather than a terminal state. Operators should correlate timeline events, health scores, and staged execution receipts when diagnosing unexpected deviations. Portfolio marks for Stock Tokens and USDG are treated as first-class inputs to policy evaluation, and any controlled market event must be durable in the market_events table before health recomputation begins. Downstream SDK clients should prefer typed error codes over string matching so utility surfaces can present distinct recovery paths for validation failures, conflicts, and transport timeouts. When extending the system, preserve modular service boundaries so Financial Intelligence and Execution Network phases can replace individual engines without rewriting the Objective Service contract.
+
+```mermaid
+flowchart LR
+  Note35[EngineeringNote35] --> ObjectiveService
+  ObjectiveService --> HealthEngine
+  HealthEngine --> ExecutionEngine
+  ExecutionEngine --> TimelineService
+```
+
+Failure mode 35: if evaluation runs against a stale portfolio snapshot, health may report a false violation. The remediation is to always read portfolio_positions immediately before metric computation and to record evaluated_at on the objective row atomically with the health_records upsert. Idempotent execution identifiers prevent duplicate restorative actions when an operator retries from the utility after a transport interruption.
