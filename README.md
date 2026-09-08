@@ -1,403 +1,553 @@
 <div align="center">
 
-# Aureon MCP
+# AUREON
 
-**The Financial Intelligence Layer for Onchain AI Agents**
+### Intelligence That Compounds Capital.
+#### The Operating System for Growing Capital.
 
-Official [Model Context Protocol](https://modelcontextprotocol.io) server for the AUREON Financial Compass.  
-Exposes the full `@buildaureon/sdk` surface as tools for Cursor, Claude Desktop, and any MCP host on the Robinhood Chain.
+**v0.1.0** · Protocol · SDK · Operator Utility
 
-<br />
+[![Build & Lint Status](https://img.shields.io/badge/ci-typecheck-0F5C4C)](.github/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1C1915)](LICENSE)
+[![SDK Package](https://img.shields.io/badge/%40aureon%2Fsdk-0.1.0-B8611D)](sdk/README.md)
+[![Node Runtime](https://img.shields.io/badge/node-%3E%3D20-324A5F)](#)
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![MCP](https://img.shields.io/badge/Protocol-MCP_stdio-0b0e0d?style=flat-square)](https://modelcontextprotocol.io)
-[![Version](https://img.shields.io/badge/version-0.1.8-a8e00d?style=flat-square)](https://github.com/buildaureon)
-[![License: MIT](https://img.shields.io/badge/license-MIT-0b0e0d?style=flat-square)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square&logo=nodejs&logoColor=white)](#requirements--installation)
-
-<br />
-
-```bash
-npx -y @buildaureon/mcp
-```
-
-[Quickstart](#quickstart) · [Architecture](#architecture) · [Authentication](#authentication) · [Tool Surface](#tool-surface) · [Agent Workflows](#agent-workflows) · [Docs](#documentation-registry)
+Transform passive capital into continuously managed capital through programmable financial outcomes.
 
 </div>
 
 ---
 
-## Table of Contents
+## 1. Introduction & Core Concept
 
-1. [What is AUREON MCP?](#what-is-aureon-mcp)
-2. [Why AUREON MCP?](#why-aureon-mcp)
-3. [Requirements & Installation](#requirements--installation)
-4. [Architecture](#architecture)
-5. [Quickstart](#quickstart)
-6. [Authentication](#authentication)
-7. [Tool Surface](#tool-surface)
-8. [Agent Workflows](#agent-workflows)
-9. [Sample Agent Prompts](#sample-agent-prompts)
-10. [Security Model](#security-model)
-11. [Development](#development)
-12. [Documentation Registry](#documentation-registry)
-13. [FAQ](#faq)
-14. [Community & License](#community)
+AUREON is an objective-driven execution protocol designed specifically for digital assets and tokenized capital on the Robinhood Chain. Traditional financial applications depend on transaction-centric workflows where an operator explicitly submits single, isolated instructions (such as a swap, borrow, or transfer). Once that instruction settles, the application has no persistent memory of the overarching goal. 
+
+AUREON introduces **Persistent Financial Objectives (PFOs)** as a first-class execution primitive. Instead of submitting isolated instructions, operators submit continuous financial intent. The AUREON engine evaluates objective health against the operator's portfolio state, determines if restoring action is required, coordinates execution, verifies results, and continues to monitor the objective indefinitely.
+
+### 1.1 Persistent Intent vs. Transactional Action
+
+| Operational Stage | Transactional Investing | AUREON Continuous Objectives |
+|-------------------|-------------------------|------------------------------|
+| **Setup** | Manual submission of swap order | Objective registered with weight & tolerance bounds |
+| **Volatiliy** | Portfolio drifts; no automatic action | Health Engine flags deviation threshold breach |
+| **Response** | Operator must manually trigger rebalance | Restorative execution triggered automatically |
+| **Lifecycle** | Ends once transaction has settled | Persists indefinitely in monitoring loops |
 
 ---
 
-## What is AUREON MCP?
+## 2. Architecture & Request Flow
 
-**AUREON** is a policy and execution layer for capital on **Robinhood Chain**. Agents register continuous financial rules (Financial Compass Objectives), monitor health, and restore allocations with honest settlement receipts rather than one-off swaps that forget intent.
+AUREON uses a modular, decoupled architecture consisting of an API gateway, domain services, a client SDK, and an operator dashboard interface. The preview runtime uses a local server and SQLite engine to manage state, enabling developers to exercise workflows before deploying smart contracts onto the Robinhood Chain.
 
-**`@buildaureon/mcp`** is the agent adapter. It runs as a local **stdio** MCP server and maps every public `@buildaureon/sdk` client method to a named tool (`aureon_ping`, `aureon_create_objective`, `aureon_restore_objective`, …).
+### 2.1 System Context
 
-| You can | Through |
-| --- | --- |
-| Authenticate with an issued developer API key | `AUREON_API_KEY` env (recommended) |
-| Optionally complete a wallet Bearer handshake | `aureon_get_auth_nonce` → sign → `aureon_verify_wallet` |
-| Sync and manage the Capital Book | `aureon_sync_portfolio`, `aureon_set_portfolio`, `aureon_clear_portfolio` |
-| Create and query Financial Compass objectives | `aureon_create_objective`, `aureon_list_objectives`, … |
-| Read health, timeline, vault, executions | `aureon_get_health`, `aureon_list_timeline`, `aureon_get_vault`, … |
-| Prepare non-custodial vault deposit / withdraw steps | `aureon_prepare_vault_deposit`, `aureon_prepare_vault_withdraw` |
-| Fetch and execute restore plans | `aureon_get_restore_plan`, `aureon_restore_objective` |
-| Rehearse market shocks | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
-| Manage developer API keys | `aureon_list_api_keys`, `aureon_create_api_key`, … |
-
-**54 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
-
-For scripts without MCP, use [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk). The operator app at [app.aureonlabs.network](https://app.aureonlabs.network) stays wallet-Bearer only.
-
----
-
-## Why AUREON MCP?
-
-Traditional AI trading scripts execute isolated market orders without context, forgetting target allocations as soon as a prompt ends. **AUREON MCP** provides a persistent financial compass for your AI agents:
-
-* **Continuous Rules vs. One-off Swaps**: Instead of telling an agent to "buy 0.5 WETH," you register a Financial Compass Objective like *"Maintain 20% WETH weight with 3% tolerance."* The watchdog automatically monitors drift and plans restores when needed.
-* **Non-Custodial Architecture**: Your private keys stay safely in your local wallet host. The MCP server generates unsigned transaction payloads that you review and sign.
-* **Zero Infrastructure Overhead**: Standard I/O transport (`stdio`) means no local database, Docker containers, or background services to manage.
-* **Honest Settlement Receipts**: Clearly distinguishes between on-chain smart vault settlements (`vault`) and ledger-local staged receipts (`staged`).
-
----
-
-## Requirements & Installation
-
-### Requirements
-
-- **Node.js**: 20 or higher (ESM compatible)
-- **Developer API Key**: Issued on the **same** API you will call (local 5174 Developers for 8788 / 4663, or [app.aureonlabs.network](https://app.aureonlabs.network) for the public host — still 46630)
-- **Network Access**: Default local mainnet `http://127.0.0.1:8788`. Optional `AUREON_NETWORK=testnet` for `https://api.aureonlabs.network` (still 46630)
-
-### Installation
-
-```bash
-# Using pnpm
-pnpm add @buildaureon/mcp
-
-# Using npm
-npm install @buildaureon/mcp
-
-# Or run instantly via npx without installing
-npx -y @buildaureon/mcp
-```
-
-You do not need to clone the AUREON monorepo: only the package and an issued key for the network you will call.
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-  Agent[Cursor / Claude] -->|stdio MCP| MCP["@buildaureon/mcp"]
-  MCP --> SDK["@buildaureon/sdk"]
-  SDK -->|default| Main[127.0.0.1:8788 / 4663]
-  SDK -->|AUREON_NETWORK=testnet| Test[api.aureonlabs.network / 46630]
-  Main --> VaultMN[Smart Vault mainnet]
-  Test --> VaultTN[Smart Vault testnet]
-```
-
-### Surface & Ownership Breakdown
-
-| Surface | Auth | Role |
-| --- | --- | --- |
-| Operator utility | Wallet sign-in (Bearer) | Human operators managing vaults and approving manual restores |
-| `@buildaureon/sdk` | Issued API key (+ optional Bearer) | Automated scripts, bots, serverless routines, and products |
-| `@buildaureon/mcp` | Same as SDK via host `env` | AI agents operating inside Cursor, Claude Desktop, or custom MCP hosts |
-
-### Layer Responsibilities
-
-| Concern | Owner | Description |
-| --- | --- | --- |
-| HTTP, retries, types, validation, errors | `@buildaureon/sdk` | Core underlying SDK client managing network communications |
-| Tool names, zod schemas, agent formatting | `@buildaureon/mcp` | MCP server mapping SDK methods to AI-friendly tools |
-| stdio / JSON-RPC protocol | `@modelcontextprotocol/sdk` | Official MCP protocol framework for inter-process communication |
-
-**Trust boundary**: The API monitors objectives and generates restore plans; private keys stay strictly on the host machine. MCP never signs chain transactions.
-
-Deep dive: [docs/architecture.md](docs/architecture.md).
-
----
-
-## Quickstart
-
-Get your AI agent running with AUREON MCP in 4 easy steps:
-
-### 1. Create an issued API key
-
-Issue the key on the **same** API this MCP process will call:
-
-1. Local mainnet (default 8788 / 4663): open Living Capital on `http://127.0.0.1:5174` → **Developers**.
-2. Public testnet (optional): open https://app.aureonlabs.network → **Developers** (still chain 46630).
-3. Create API Key → copy your key once.
-
-That key identifies your wallet for control-plane tools. **No Bearer token required.** A testnet key will not authenticate the local mainnet API.
-
-### 2. Configure Cursor IDE
-
-Copy [`examples/cursor.mcp.json`](examples/cursor.mcp.json) into `.cursor/mcp.json` (or merge into your global Cursor MCP config):
-
-```json
-{
-  "mcpServers": {
-    "aureon": {
-      "command": "npx",
-      "args": ["-y", "@buildaureon/mcp"],
-      "env": {
-        "AUREON_API_KEY": "<issued-developer-api-key>"
-      }
-    }
-  }
-}
-```
-
-Restart Cursor. Open the AI chat panel and ask: *“Ping AUREON and show my wallet with aureon_me.”*
-
-### 3. Configure Claude Desktop
-
-Merge [`examples/claude-desktop.json`](examples/claude-desktop.json) into Claude Desktop's configuration file:
-
-* **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-* **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "aureon": {
-      "command": "npx",
-      "args": ["-y", "@buildaureon/mcp"],
-      "env": {
-        "AUREON_API_KEY": "<issued-developer-api-key>"
-      }
-    }
-  }
-}
-```
-
-Restart Claude Desktop and test the connection.
-
-### 4. From a local clone (maintainers)
-
-```bash
-pnpm install
-pnpm --filter @buildaureon/mcp build
-pnpm --filter @buildaureon/mcp start
-```
-
-Point the host `command` / `args` at the built `dist/index.js`. See [docs/setup.md](docs/setup.md).
-
----
-
-## Authentication
-
-### Recommended: Issued API key
-
-| Variable | Required | Role |
-| --- | --- | --- |
-| `AUREON_API_KEY` | Yes (recommended) | Issued developer key for product access **and** wallet identity |
-| `AUREON_NETWORK` | No | Omit for mainnet (4663 / 8788). Set `testnet` for the public host (still 46630). |
-| `AUREON_API_URL` | No | Optional override. Must match `AUREON_NETWORK` if both are set. |
-| `AUREON_AUTH_TOKEN` | No | Optional wallet Bearer (**wins** if both key and Bearer are sent) |
-
-**Private Key Boundary**: Private keys are only needed outside MCP when signing and broadcasting deposit or withdrawal transactions. Prepare tools return unsigned transaction steps; the MCP server never signs.
-
-### Optional: Wallet Bearer session
-
-Use `aureon_get_auth_nonce` → host wallet signs challenge → `aureon_verify_wallet`. Prefer issued keys for always-on agents.
-
-### Preview / Dev Mode only
-
-`aureon_dev_login` works only when the API backend has `AUREON_ALLOW_DEV_LOGIN=1` (it does not function on production).
-
-Deep dive: [docs/auth.md](docs/auth.md).
-
----
-
-## Tool Surface
-
-AUREON MCP exposes **54 tools** covering 100% of the `AureonClient` SDK surface:
-
-| Category | Count | Tools Included | Primary Purpose |
-| --- | --- | --- | --- |
-| **Health** | 1 | `aureon_ping` | Check API connectivity & backend watchdog state |
-| **Auth** | 5 | `aureon_get_auth_nonce`, `aureon_verify_wallet`, `aureon_dev_login`, `aureon_logout`, `aureon_me` | Manage wallet sessions, challenges, and identity |
-| **Read** | 12 | `aureon_get_overview`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status`, `aureon_get_audit_trail` | Inspect portfolio allocations, health scores, timelines, vault state, and the joined audit trail |
-| **Objectives** | 4 | `aureon_create_objective`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` | Create, modify, pause, and resume Financial Compass Objectives |
-| **Portfolio** | 3 | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` | Synchronize and manage live Capital Book asset marks |
-| **Execution** | 2 | `aureon_run_execution`, `aureon_restore_objective` | Trigger policy rebalancing and execute objective restore plans |
-| **Market** | 2 | `aureon_apply_market_event`, `aureon_refresh_watchdog` | Rehearse market shocks (e.g. price shifts) against active policy |
-| **Vault** | 2 | `aureon_prepare_vault_deposit`, `aureon_prepare_vault_withdraw` | Generate unsigned steps for non-custodial smart vault deposits/withdrawals |
-| **Developer** | 4 | `aureon_list_api_keys`, `aureon_create_api_key`, `aureon_revoke_api_key`, `aureon_toggle_api_key` | Create, pause, and revoke developer API access keys |
-
-Full argument schemas: [docs/tools.md](docs/tools.md) · Playbooks: [docs/agent-guide.md](docs/agent-guide.md).
-
-### Locked fields
-
-- `targetSymbol` and `automationMode` are set at **create** time and cannot be modified via `aureon_update_objective`: recreate the objective instead.
-- Default `automationMode` is `"auto"`. Use `"manual"` only when a human must Approve changes inside the utility web app.
-
----
-
-## Agent Workflows
-
-Agents perform best when following the **Read → Decide → Act** execution pattern:
+The diagram below outlines how the developer utility and SDK clients interact with the primary services and the local SQLite database.
 
 ```mermaid
 flowchart TD
-  subgraph Read Phase
-    R1[1. aureon_ping] --> R2[2. aureon_me]
-    R2 --> R3[3. aureon_sync_portfolio]
-    R3 --> R4[4. aureon_get_health]
-  end
+  Utility[Utility Operator App]
+  SDK[Aureon TypeScript SDK]
+  API[Hono API Gateway]
+  Obj[Objective Service]
+  Health[Health Engine]
+  Exec[Execution Engine]
+  Market[Market Event Console]
+  Timeline[Timeline Service]
+  DB[(SQLite Storage)]
 
-  subgraph Decide Phase
-    R4 --> D1{Policy Breached?}
-  end
-
-  subgraph Act Phase
-    D1 -- Yes --> A1[aureon_get_restore_plan]
-    A1 --> A2[aureon_restore_objective]
-    A2 --> A3[aureon_list_timeline]
-    D1 -- No --> A4[Maintain current positions]
-  end
+  Utility --> SDK
+  SDK --> API
+  API --> Obj
+  API --> Health
+  API --> Exec
+  API --> Market
+  API --> Timeline
+  Obj --> DB
+  Health --> DB
+  Exec --> DB
+  Market --> DB
+  Timeline --> DB
 ```
 
-### 1. Control-Plane Routine (API Key Only)
+### 2.2 Objective Lifecycle State Machine
 
-1. `aureon_ping` → `aureon_me` (Verify connection and wallet identity)
-2. `aureon_sync_portfolio` → `aureon_get_vault_status` (Fetch marks and check vault readiness)
-3. If the vault is empty: `aureon_restore_objective` returns **409**. Call `aureon_prepare_vault_deposit`, return unsigned steps, and wait for the user or host wallet to broadcast. Agents do not fund the vault.
-4. `aureon_create_objective` (`auto`) (Register continuous financial objective)
-5. `aureon_refresh_watchdog` / `aureon_get_health` (Check health score and drift)
-6. On violation after the vault is funded → `aureon_get_restore_plan` → `aureon_restore_objective`
-7. Confirm with `aureon_list_timeline` (Verify settlement receipts)
+Objectives transition through various operational states based on policy definitions, portfolio marks, and execution results.
 
-### 2. Vault Deposit Path (API Key + External Signer)
+```mermaid
+stateDiagram-v2
+  [*] --> Draft
+  Draft --> Validated: Validation checks pass
+  Validated --> Active: Operator activates objective
+  Active --> Healthy: Evaluation shows metrics within tolerance
+  Healthy --> Violation: Mark movements exceed tolerance bounds
+  Violation --> Executing: Restorative transaction submitted
+  Executing --> Verifying: Waiting for receipt confirmation
+  Verifying --> Healthy: Post-execution metrics return within tolerance
+  Active --> Paused: Operator suspends evaluation
+  Paused --> Active: Operator resumes evaluation
+  Active --> Cancelled: Objective terminated
+```
 
-1. `aureon_prepare_vault_deposit` → returns unsigned steps
-2. Host wallet signs and broadcasts transaction on Robinhood Chain
-3. `aureon_sync_portfolio` / `aureon_get_vault` (Re-sync marks to reflect new deposit)
+### 2.3 Restorative Execution Sequence
 
-More playbooks: [docs/agent-guide.md](docs/agent-guide.md).
+This diagram shows the execution flow when a controlled market event moves asset marks, causing an objective violation and subsequent automated restoration.
+
+```mermaid
+sequenceDiagram
+  participant Operator as Operator App
+  participant Market as Market Console
+  participant Health as Health Engine
+  participant Exec as Execution Engine
+  participant DB as SQLite Database
+
+  Operator->>Market: Apply Market Event (NVDA Drawdown)
+  Market->>DB: Update NVDA position price mark
+  Market->>Health: Trigger health recomputation
+  Health->>DB: Load position weights and marks
+  Health->>Health: Evaluate deviation vs tolerance
+  Note over Health: Deviation exceeds threshold: State -> Violation
+  Health->>DB: Save Health Record
+  Health->>Exec: Dispatch Restoration Request
+  Exec->>DB: Load stable target weight policy
+  Exec->>Exec: Compute rebalancing quantities
+  Exec->>DB: Write Staged Execution Receipt (Pending)
+  Exec->>Exec: Confirm transaction settlement delay
+  Exec->>DB: Update Execution Receipt (Confirmed)
+  Exec->>Health: Request post-execution verification
+  Health->>DB: Load updated position marks
+  Health->>Health: Recompute deviation
+  Note over Health: Metrics return within bounds: State -> Healthy
+  Health->>DB: Save updated Health Record
+  Health->>Operator: Return current healthy state
+```
 
 ---
 
-## Sample Agent Prompts
+## 3. Monorepo Package Directory Map
 
-Copy and paste these example prompts into Cursor or Claude Desktop:
+This repository is organized as a pnpm monorepo. It contains the following packages and directories:
 
-### Portfolio Audit
-> *"Ping AUREON, verify my wallet address with aureon_me, sync my portfolio, and give me a summary of total AUM and active objective health."*
-
-### Setting a Compass Objective
-> *"Create an automatic Financial Compass Objective named 'Maintain 20% WETH' targeting symbol WETH with weight 0.20 and tolerance 0.03."*
-
-### Monitoring & Drift Restoration
-> *"Refresh the watchdog and inspect my AUREON health. If any objective is in breach, show me the restore plan and run aureon_restore_objective."*
-
-### Deposit Preparation
-> *"Prepare an unsigned vault deposit for 0.1 ETH. Return the exact step payload so I can review and sign it in my wallet."*
+* **`backend/`**: A Hono-based API server written in TypeScript. It contains the Health Engine, Execution Engine, Timeline logger, and a SQLite database manager.
+* **`utility/`**: A developer-focused operator dashboard built using React and TailwindCSS. It connects to the backend API to show real-time objectives, portfolio positions, and timelines.
+* **`sdk/`**: `@aureon/sdk`, the official client SDK written in TypeScript.
+* **`landing/`**: A static landing page placeholder.
+* **`landing-site/`**: A high-end marketing website for AUREON built with React, GSAP, and TailwindCSS.
+* **`contracts/`**: TypeScript interfaces and types outlining the on-chain Solidity `ObjectiveRegistry` contract specs.
+* **`docs/`**: Detailed engineering guides detailing core modules, protocols, and guides.
+* **`examples/`**: Code tutorials demonstrating end-to-end integration workflows.
 
 ---
 
-## Security Model
+## 4. Getting Started
 
-* **Local stdio Isolation**: Run MCP **locally over stdio** only; do not expose standard I/O sockets on the public internet.
-* **API Key Protection**: Treat `AUREON_API_KEY` like a password. Pause, revoke, or rotate keys in the Developer dashboard if compromised.
-* **Environment Hygiene**: Never commit keys to version control. Never put wallet private keys into MCP environment variables.
-* **Prompt Safety**: Review agent prompts before enabling write tools in untrusted or multi-user chat channels.
+### 4.1 Prerequisites
 
-Deep dive details: [docs/security.md](docs/security.md).
+Ensure you have the following installed on your machine:
+* Node.js (version 20 or higher)
+* pnpm (version 9 or higher)
 
----
+### 4.2 Workspace Installation
 
-## Development
-
-To build and test `@buildaureon/mcp` locally:
+Install the monorepo dependencies from the root directory:
 
 ```bash
 pnpm install
-pnpm --filter @buildaureon/mcp build
-pnpm --filter @buildaureon/mcp test
-pnpm --filter @buildaureon/mcp typecheck
 ```
 
-### Script Reference
+### 4.3 Building the SDK
 
-| Script | Purpose | Description |
-| --- | --- | --- |
-| `build` | `tsup` → `dist/` | Bundles TypeScript source into distribution ESM output |
-| `dev` | `tsx src/index.ts` | Runs server directly from source for local development |
-| `start` | `node dist/index.js` | Runs compiled distribution binary |
-| `test` | `tsx --test ...` | Runs unit, smoke, and integration test suites |
-| `typecheck` | `tsc --noEmit` | Validates TypeScript types across source files |
+The SDK must be compiled before running the utility dashboard or examples:
 
----
+```bash
+pnpm --filter @aureon/sdk build
+```
 
-## Documentation Registry
+### 4.4 Running the Services Locally
 
-| Document | Description & Contents |
-| --- | --- |
-| **[Setup Guide](docs/setup.md)** | Step-by-step setup for Cursor, Claude Desktop, npx, building from source, and troubleshooting |
-| **[Authentication Guide](docs/auth.md)** | Issued API key vs. Wallet Bearer vs. private key boundaries |
-| **[Tools Reference](docs/tools.md)** | Full 54-tool reference with arguments, schemas, and caveats |
-| **[Agent Playbooks](docs/agent-guide.md)** | End-to-end agent decision playbooks, turn templates, and anti-patterns |
-| **[Architecture Deep Dive](docs/architecture.md)** | Module boundaries, file maps, and end-to-end request data flows |
-| **[Security Model](docs/security.md)** | Credential management, threat modeling, and operational safety |
-| **[Changelog](CHANGELOG.md)** | Published versions, including 0.1.8 networks and first-use |
-| **[`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk)** | Core TypeScript SDK documentation, types, and error definitions |
+1. **Start the API Backend**:
+   In your terminal, launch the Hono server:
+   ```bash
+   pnpm --filter @aureon/backend dev
+   ```
+   The backend API will run at `http://127.0.0.1:8787`.
 
----
+2. **Start the Operator Utility Dashboard**:
+   In another terminal, launch the Vite development server for the UI:
+   ```bash
+   pnpm --filter @aureon/utility dev
+   ```
+   The dashboard will run at `http://127.0.0.1:5173`.
 
-## FAQ
-
-**Do I need a private key in Cursor or Claude env?**  
-No. You only need an issued `AUREON_API_KEY`. Private keys stay in your host wallet when signing prepare steps.
-
-**Does MCP talk to a local backend server?**  
-Yes by default. Omit `AUREON_API_URL` for local mainnet `http://127.0.0.1:8788` (chain 4663). Set `AUREON_NETWORK=testnet` for the public host (still chain 46630). `api.aureonlabs.network` is not 4663.
-
-**Why did my restore receipt say `staged`?**  
-`staged` is a ledger-local receipt, not an on-chain vault settlement. Always describe settlement receipts accurately in agent responses.
-
-**Can agents use Manual automation mode?**  
-Prefer Automatic (`auto`). Manual mode requires human Approval inside the operator utility app.
-
-**What happens if an objective breaches its drift tolerance?**  
-The watchdog marks health as breached. Agents call `aureon_get_restore_plan` to inspect the rebalancing steps, then `aureon_restore_objective` to execute the restore.
-
-**How does MCP handle network errors or disconnects?**  
-The underlying `@buildaureon/sdk` handles HTTP retries and reports structured error objects with stable error codes back to the MCP host.
+3. **Start the Marketing Landing Site**:
+   If you want to view the landing website, run:
+   ```bash
+   pnpm --filter @aureon/landing-site dev
+   ```
+   The marketing site will run at `http://127.0.0.1:5050`.
 
 ---
 
-## Community
+## 5. Detailed HTTP API Reference
 
-- **Website**: https://www.aureonlabs.network
-- **X (Twitter)**: https://x.com/buildaureon
-- **App Utility**: https://app.aureonlabs.network
+The backend API uses JSON for all request payloads and responses. 
 
-## License
+### 5.1 Authentication Endpoints
 
-MIT (see [LICENSE](LICENSE)).
+#### `GET /auth/nonce`
+Requests a wallet sign-in challenge.
+* **Query Parameters**:
+  * `address` (string, required): The wallet address.
+* **Response (200 OK)**:
+  ```json
+  {
+    "walletAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "nonce": "challenge_nonce_string",
+    "message": "Sign this message to login to AUREON...",
+    "expiresAt": "2026-07-11T15:00:00.000Z"
+  }
+  ```
+
+#### `POST /auth/verify`
+Submits the wallet signature to establish an authenticated session.
+* **Request Body**:
+  * `address` (string): The wallet address.
+  * `message` (string): The signed challenge message.
+  * `signature` (string): The cryptographic signature.
+* **Response (200 OK)**:
+  ```json
+  {
+    "token": "bearer_jwt_token_string",
+    "walletAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "expiresAt": "2026-07-11T16:00:00.000Z",
+    "sessionId": "session_id_string"
+  }
+  ```
+
+#### `POST /auth/dev-login`
+Creates an unsigned developer bypass session. Available in local preview mode only.
+* **Response (200 OK)**:
+  ```json
+  {
+    "token": "bearer_jwt_token_string",
+    "walletAddress": "0x0000000000000000000000000000000000000000",
+    "expiresAt": "2026-07-12T12:00:00.000Z",
+    "sessionId": "dev_session_id",
+    "mode": "dev-bypass"
+  }
+  ```
+
+---
+
+### 5.2 Objectives Endpoints
+
+#### `GET /objectives`
+Lists all objectives registered to the authenticated wallet.
+* **Headers**: `Authorization: Bearer <token>`
+* **Response (200 OK)**:
+  ```json
+  {
+    "objectives": [
+      {
+        "id": "obj_01h78dfa891bcde123456789",
+        "name": "Maintain 20% Stable Assets",
+        "kind": "stable_allocation",
+        "status": "active",
+        "priority": "high",
+        "policy": {
+          "targetWeight": 0.2,
+          "tolerance": 0.02,
+          "summary": "Maintain 20.0% stable allocation within ±2.0%"
+        },
+        "ownerId": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "createdAt": "2026-07-11T10:00:00.000Z",
+        "updatedAt": "2026-07-11T10:00:00.000Z",
+        "lastEvaluatedAt": "2026-07-11T12:00:00.000Z",
+        "lastExecutionId": "exec_01h78dfa891bcde999999999"
+      }
+    ]
+  }
+  ```
+
+#### `POST /objectives`
+Registers a new Persistent Financial Objective.
+* **Headers**: `Authorization: Bearer <token>`
+* **Request Body**:
+  * `name` (string, required): A name for the objective (min 3 chars).
+  * `kind` (string, required): One of `stable_allocation`, `balanced_portfolio`, `risk_ceiling`, `reward_reinvestment`.
+  * `priority` (string, optional): One of `low`, `medium`, `high`, `critical`. Defaults to `high`.
+  * `targetWeight` (number, required): Decimal weight between `0` and `1`.
+  * `tolerance` (number, required): Tolerance band between `0` and `0.5`.
+  * `maxRiskScore` (number, optional): Maximum risk ceiling (optional).
+  * `reinvestRatio` (number, optional): Ratio for reward reinvesting (optional).
+* **Response (201 Created)**: Returns the newly created objective object.
+
+#### `PATCH /objectives/:id`
+Updates parameters for an existing objective.
+* **Headers**: `Authorization: Bearer <token>`
+* **Request Body**: Accepts partial updates for `name`, `priority`, `targetWeight`, `tolerance`, `maxRiskScore`, or `reinvestRatio`.
+* **Response (200 OK)**: Returns the updated objective object.
+
+#### `POST /objectives/:id/pause`
+Suspends continuous health evaluation for the objective.
+* **Response (200 OK)**: Returns the objective with `status` set to `paused`.
+
+#### `POST /objectives/:id/resume`
+Resumes continuous health evaluation for a paused objective.
+* **Response (200 OK)**: Returns the objective with `status` set to `active`.
+
+---
+
+### 5.3 Health, Timeline, & Executions
+
+#### `GET /health`
+Returns current health evaluation states.
+* **Query Parameters**:
+  * `objectiveId` (string, optional): Filter results to a single objective.
+* **Response (200 OK)**:
+  ```json
+  {
+    "health": [
+      {
+        "objectiveId": "obj_01h78dfa891bcde123456789",
+        "state": "healthy",
+        "score": 1,
+        "currentMetric": 0.2015,
+        "targetMetric": 0.2,
+        "deviation": 0.0015,
+        "message": "Allocation is within tolerance band",
+        "evaluatedAt": "2026-07-11T12:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+#### `GET /timeline`
+Returns append-only timeline log events.
+* **Query Parameters**:
+  * `objectiveId` (string, optional): Filter to events for a specific objective.
+* **Response (200 OK)**:
+  ```json
+  {
+    "events": [
+      {
+        "id": "evt_01h78dfa891bcde555555555",
+        "objectiveId": "obj_01h78dfa891bcde123456789",
+        "type": "objective_created",
+        "message": "Objective created and registered under owner account",
+        "payload": {},
+        "createdAt": "2026-07-11T10:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+#### `GET /executions`
+Lists execution logs containing staged transaction receipts.
+* **Response (200 OK)**:
+  ```json
+  {
+    "executions": [
+      {
+        "id": "exec_01h78dfa891bcde999999999",
+        "objectiveId": "obj_01h78dfa891bcde123456789",
+        "status": "confirmed",
+        "transactionHash": "0x77d1ca8fb4...55a73e",
+        "action": "rebalance",
+        "notionalAdjustedUsd": 1250.75,
+        "result": "Staged restoration rebalancing complete",
+        "createdAt": "2026-07-11T11:00:00.000Z",
+        "confirmedAt": "2026-07-11T11:00:00.350Z"
+      }
+    ]
+  }
+  ```
+
+---
+
+### 5.4 Portfolio & Market Rehearsal
+
+#### `GET /portfolio`
+Returns positions, asset category aggregates, and total notional valuation.
+* **Response (200 OK)**:
+  ```json
+  {
+    "portfolioId": "port_01h78dfa891bcde000000000",
+    "totalNotionalUsd": 100000,
+    "stableWeight": 0.2015,
+    "stockTokenWeight": 0.7485,
+    "gasWeight": 0.05,
+    "positions": [
+      {
+        "id": "pos_usdg",
+        "symbol": "USDG",
+        "name": "Aureon Stable Token",
+        "category": "stable",
+        "quantity": 20150,
+        "markPriceUsd": 1.0,
+        "notionalUsd": 20150,
+        "weight": 0.2015,
+        "updatedAt": "2026-07-11T12:00:00.000Z"
+      }
+    ],
+    "asOf": "2026-07-11T12:00:00.000Z"
+  }
+  ```
+
+#### `POST /market/events`
+Injects controlled mark movement changes into the local preview ledger.
+* **Request Body**:
+  * `symbol` (string): The ticker symbol to change (e.g. `NVDA`).
+  * `priceChangeRatio` (number): The decimal percentage to shift the price (e.g. `-0.15` for a 15% drawdown).
+  * `autoRestore` (boolean, optional): If `true`, the server automatically evaluates objective health and triggers execution. Defaults to `true`.
+* **Response (200 OK)**: Returns the applied event data, updated portfolio snapshot, and health evaluation metrics.
+
+---
+
+## 6. Developer SDK Integration Guide
+
+The `@aureon/sdk` package is the official library for interacting with the AUREON HTTP API. SDK clients send **both** a product API key (`X-Aureon-Api-Key`) and a wallet Bearer session. Vault deposit/withdraw uses `prepareVaultDeposit` / `prepareVaultWithdraw` — the host signs returned calldata steps; the API never holds user keys.
+
+### 6.1 Client Configuration Options
+
+When initializing the client, developers can pass an `AureonClientOptions` configuration object:
+
+```ts
+export interface AureonClientOptions {
+  baseUrl: string;           // Base URL of the API gateway (e.g. https://api.aureonlabs.network)
+  fetch?: typeof fetch;      // Custom fetch injection (useful for server runtimes)
+  headers?: Record<string, string>; // Extra headers merged into all requests
+  timeoutMs?: number;        // Request timeout in ms (defaults to 30000)
+  authToken?: string | null; // Pre-obtained bearer token
+  getAccessToken?: () => string | null | Promise<string | null>; // Dynamic token resolver
+  logger?: AureonLogger;     // Logger interface for debug, warn, and error events
+  maxRetries?: number;       // Max retry attempts for retryable errors (defaults to 2)
+  retryDelayMs?: number;     // Initial delay in ms for backoff retries (defaults to 250)
+}
+```
+
+### 6.2 Initializing the Client
+
+Use `createAureonClient` to instantiate a client. In local development, you can use `createLocalAureonClient` to automatically connect to the default local address (`https://api.aureonlabs.network`).
+
+```ts
+import { createAureonClient, createLocalAureonClient } from "@aureon/sdk";
+
+// Custom API Ingress configuration
+const aureon = createAureonClient({
+  baseUrl: "https://api.aureonlabs.network",
+  timeoutMs: 15_000,
+  maxRetries: 3,
+});
+
+// Default local connection helper
+const localAureon = createLocalAureonClient();
+```
+
+### 6.3 Handling Authentication Challenges
+
+Here is a step-by-step example showing how to request an auth challenge nonce, sign it, verify the signature, and configure the bearer token for subsequent calls:
+
+```ts
+import { createLocalAureonClient, createSessionTokenProvider } from "@aureon/sdk";
+
+async function authenticateSession(walletAddress: string, signer: any) {
+  // Create token provider to hold the bearer token
+  const tokenProvider = createSessionTokenProvider();
+  
+  const client = createLocalAureonClient({
+    getAccessToken: tokenProvider.getAccessToken,
+  });
+
+  // 1. Fetch challenge nonce from backend
+  const { message } = await client.getAuthNonce(walletAddress);
+
+  // 2. Sign message using the wallet signer
+  const signature = await signer.signMessage(message);
+
+  // 3. Verify signature and establish session
+  const session = await client.verifyWallet({
+    address: walletAddress,
+    message,
+    signature,
+  });
+
+  // 4. Update the token provider
+  tokenProvider.setToken(session.token);
+
+  console.log("Authentication successful! Session wallet:", session.walletAddress);
+  return client;
+}
+```
+
+---
+
+## 7. Storage Design & SQLite Database
+
+The local preview server uses Node's experimental native `node:sqlite` engine. Below is the structural schema of the database tables managed under `backend/src/db.ts`.
+
+### 7.1 Database Entity Schema
+
+```
+  ┌────────────────────────────────────────────────────────┐
+  │                      objectives                        │
+  ├──────────────────┬──────────────────┬──────────────────┤
+  │ id (TEXT PK)     │ name (TEXT)      │ kind (TEXT)      │
+  │ status (TEXT)    │ priority (TEXT)  │ owner_id (TEXT)  │
+  │ target_weight    │ tolerance        │ max_risk_score   │
+  │ reinvest_ratio   │ target_symbol    │ automation_mode  │
+  │ created_at       │ updated_at       │                  │
+  └──────────────────┴──────────────────┴──────────────────┘
+            │                  │                  │
+            │ 1                │ 1                │ 1
+            ▼ *                ▼ *                ▼ 1
+  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+  │    executions    │  │ timeline_events  │  │  health_records  │
+  ├──────────────────┤  ├──────────────────┤  ├──────────────────┤
+  │ id (TEXT PK)     │  │ id (TEXT PK)     │  │ objective_id (PK)│
+  │ objective_id (FK)│  │ objective_id (FK)│  │ state (TEXT)     │
+  │ status (TEXT)    │  │ type (TEXT)      │  │ score (REAL)     │
+  │ tx_hash (TEXT)   │  │ message (TEXT)   │  │ current_metric   │
+  │ adjusted_usd     │  │ payload_json     │  │ deviation (REAL) │
+  │ confirmed_at     │  │ created_at       │  │ evaluated_at     │
+  └──────────────────┘  └──────────────────┘  └──────────────────┘
+```
+
+### 7.2 Core Database Invariants
+
+The backend database layer enforces rules during all insert and update statements:
+1. **Target Weight Bound**: The `target_weight` field stored in the `objectives` table must satisfy `0 <= target_weight <= 1`.
+2. **Tolerance Band Bound**: The `tolerance` field must satisfy `0 <= tolerance <= 0.5`.
+3. **Owner Separation**: A wallet account is only permitted to query, update, or pause objectives that contain matching `owner_id` parameters.
+4. **Idempotent Executions**: A unique transaction hash is generated for each execution receipt to prevent duplicate rebalancing actions.
+
+---
+
+## 8. Security & Preview Limits
+
+Phase 1 provides an emulated environment for operators to rehearse. It does not interface with public networks or mainnet execution protocols. 
+
+### 8.1 Trust Assumptions
+* **Local Workstation Security**: The local backend API binds to `127.0.0.1` and does not use SSL configuration by default. Developers should not expose this local port to the internet.
+* **Provisional Settlement Labels**: Staged transaction hashes returned in execution receipts do not represent actual transactions on the Robinhood Chain mainnet or testnet. They are local correlation keys.
+* **Asset Allocation Limits**: Portfolio balances and asset price marks are stored in a local SQLite ledger. They do not correlate to actual tokens or assets held in external wallet software.
+
+---
+
+## 9. Troubleshooting & FAQ
+
+### Q1: Why do my objective creations fail with a validation error?
+Ensure that your `targetWeight` and `tolerance` inputs are formatted as decimal numbers (e.g. `0.20` for 20% weight and `0.02` for 2% tolerance). Common errors include submitting weights as integers (such as `20` instead of `0.20`).
+
+### Q2: How does the backend calculate a violation?
+The Health Engine checks the current weight of the target asset in your portfolio:
+$$\text{Current Weight} = \frac{\text{Target Position Notional}}{\text{Total Portfolio Notional}}$$
+If the absolute difference between the current weight and the target weight is greater than the tolerance value, the objective state transitions to `violation`.
+
+### Q3: When does restorative execution start?
+In the preview runtime, restorative execution starts immediately when a controlled market event is applied with the `autoRestore` parameter set to `true`. Alternatively, operators can trigger manual execution by calling the POST `/executions/run` endpoint directly.
+
+---
+
+## 10. License
+
+This repository is distributed under the terms of the MIT License. Refer to the [LICENSE](LICENSE) file for the full text. Aureon is an independent project and is not affiliated with Robinhood Markets, Inc.
