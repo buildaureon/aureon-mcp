@@ -534,7 +534,7 @@ In the **@buildaureon/sdk documentation** (client API, data contracts, error mod
 
 ### What URL should agents use?
 
-Omit `AUREON_API_URL` for local mainnet `http://127.0.0.1:8788` (chain 4663). Set `AUREON_NETWORK=testnet` for the public host (still 46630). Do not treat `api.aureonlabs.network` as 4663.
+Omit `AUREON_API_URL` for the official API `https://api.aureonlabs.network` (currently chain 46630). Set `AUREON_NETWORK=mainnet` for chain 4663 on the same host.
 
 ### What if the operator asks me to “just send the transaction”?
 
