@@ -32,7 +32,7 @@ Translate operator intent into a **single** next action (or a short sequenced pl
 
 Decide:
 
-- Do we need funding first (prepare deposit → host signs)?
+- Is the vault empty (restore must 409; return unsigned prepare; do not fund)?
 - Do we create a new Automatic objective?
 - Do we restore an existing breach?
 - Is this only a rehearsal (market event)?
@@ -467,10 +467,10 @@ Avoid these failure modes.
 
 Agents operate best as **keepers with Automatic objectives**:
 
-1. Ensure vault funding (prepare → host signs → sync).
+1. On first use the vault is empty: `aureon_restore_objective` must **409**. Call `aureon_prepare_vault_deposit` and return unsigned steps. **Do not fund.** The user signs when they use the product (same as testnet).
 2. Create objectives with `automationMode: "auto"`.
 3. Watch health via `aureon_refresh_watchdog` / `aureon_get_health`.
-4. On breach: plan → `aureon_restore_objective` → confirm timeline / executions.
+4. On breach after the user has funded: plan → `aureon_restore_objective` → confirm timeline / executions.
 
 Manual mode remains available for humans who want Approve gates. If the operator insists on Manual, say clearly that agent-driven restores may be limited and the utility Approve surface is the control plane for those swaps.
 
@@ -482,7 +482,7 @@ Manual mode remains available for humans who want Approve gates. If the operator
 | --- | --- | --- |
 | 401 / invalid key | Bad or revoked issued key | Stop. Ask operator to rotate in Developers and update host env. |
 | Wallet session required / env key cannot identify wallet | Non-issued gating key | Switch to an **issued** Developers key. |
-| Vault empty / cannot restore | No funding for Automatic path | Prepare deposit; wait for broadcast; re-sync; re-check status. |
+| Vault empty / cannot restore | First use — user has not deposited | Prepare deposit (unsigned); wait for the user/host to broadcast; re-sync. Agents do not fund. |
 | Update rejects symbol / mode | Immutable create fields | Explain lock; offer recreate + pause old. |
 | Restore flaps / healthy immediately | Marks shifted or race | Re-read health + vault; avoid spam restores. |
 | Prepare succeeds, balances unchanged | Broadcast never happened | Remind: unsigned steps need host signature. |
@@ -534,7 +534,7 @@ In the **@buildaureon/sdk documentation** (client API, data contracts, error mod
 
 ### What URL should agents use?
 
-The live API: `https://api.aureonlabs.network`.
+Omit `AUREON_API_URL` for local mainnet `http://127.0.0.1:8788` (chain 4663). Set `AUREON_NETWORK=testnet` for the public host (still 46630). Do not treat `api.aureonlabs.network` as 4663.
 
 ### What if the operator asks me to “just send the transaction”?
 
@@ -608,7 +608,7 @@ Agents should be decisive about what they can do alone with an issued key:
 
 ```text
 READ:   ping → me → sync_portfolio → vault_status → health
-DECIDE: fund? create auto? restore? rehearse only?
+DECIDE: empty vault 409 + unsigned prepare (do not fund)? create auto? restore? rehearse only?
 ACT:    prepare_* (host signs) | create_objective(auto) | restore_objective
 CHECK:  timeline / executions / health — quote settlement=vault|staged
 ```
