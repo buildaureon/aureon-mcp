@@ -4,7 +4,7 @@
  * Env (public / CI friendly — no monorepo paths):
  *   AUREON_API_KEY              issued developer key OR product gate key
  *   AUREON_WALLET_PRIVATE_KEY   0x… signing key (required for wallet auth + broadcast)
- *   AUREON_NETWORK              optional; omit for mainnet 8788 / 4663; testnet = public host (still 46630)
+ *   AUREON_NETWORK              optional; omit for official API / testnet 46630; mainnet = chain 4663
  *   AUREON_API_URL              optional override
  *   AUREON_RPC_URL              optional (defaults from resolved chain)
  *   AUREON_E2E_INVITE_CODE      optional invite for first wallet login
