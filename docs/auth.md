@@ -19,7 +19,7 @@ If you have not configured the host yet, start with [./setup.md](./setup.md), th
 
 ## Goals of MCP auth
 
-1. Reach the resolved API (default local mainnet `http://127.0.0.1:8788` / 4663). Opt in to the public host with `AUREON_NETWORK=testnet` (still 46630).
+1. Reach the official API `https://api.aureonlabs.network` (currently testnet 46630). Opt in to chain 4663 with `AUREON_NETWORK=mainnet`.
 2. Bind control-plane actions to a wallet identity (issued key or Bearer session).
 3. Keep signing and broadcasting of on-chain vault steps **outside** MCP.
 4. Prefer a long-lived issued key for always-on agents over interactive wallet handshakes.
@@ -51,8 +51,8 @@ Plain language:
 | --- | --- |
 | `AUREON_API_KEY` | Preferred. Issued developer key. |
 | `AUREON_AUTH_TOKEN` | Optional Bearer. Use when you intentionally want a session without (or in addition to) a key — see conflict rules below. |
-| `AUREON_NETWORK` | Optional. Omit for mainnet (4663 / 8788). Set `testnet` for the public host (still 46630). |
-| `AUREON_API_URL` | Optional override. Must match `AUREON_NETWORK` if both are set. |
+| `AUREON_NETWORK` | Optional. Omit for official API / testnet 46630. Set `mainnet` for chain 4663. |
+| `AUREON_API_URL` | Optional override of `https://api.aureonlabs.network`. |
 
 Startup rule: at least one of `AUREON_API_KEY` or `AUREON_AUTH_TOKEN` must be set or the MCP process exits with a clear error.
 
@@ -66,18 +66,18 @@ This is the default for Cursor, Claude, and other always-on agents.
 
 ### Steps
 
-1. Issue a key on the **same** API you will call. Local mainnet: Developers on `http://127.0.0.1:5174`. Public testnet: [app.aureonlabs.network](https://app.aureonlabs.network) (still 46630).
+1. Issue a key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**.
 2. Connect the wallet that should own objectives and Capital Book state.
 3. Open **Developers** and create a key (name it after the host, e.g. `cursor-mcp`).
 4. Copy the secret once into the host MCP `env` as `AUREON_API_KEY`.
 5. Do **not** set `AUREON_AUTH_TOKEN` unless you have a specific reason.
 6. Restart the host and call `aureon_ping` then `aureon_me`.
 
-Minimal env (local mainnet 8788 / 4663):
+Minimal env (official API):
 
 ```bash
 AUREON_API_KEY=aureon_....
-# AUREON_NETWORK=testnet   # only for the public host (still 46630)
+# AUREON_NETWORK=mainnet   # chain 4663 on the same official host
 ```
 
 With only the issued key, agents can sync portfolio, create objectives, fetch restore plans, restore, refresh watchdog, and manage developer keys — without an interactive signature each session.
@@ -221,7 +221,7 @@ Never paste a private key into MCP tool arguments or host env “for convenience
 | `aureon_verify_wallet` fails | Bad signature, stale nonce, or missing invite | New nonce; re-sign; supply `inviteCode` if required |
 | `aureon_dev_login` fails on live API | Expected | Use an issued key. Public host is still 46630. |
 | Prepare tools succeed but funds do not move | Unsigned steps not broadcast | Sign outside MCP with a real wallet |
-| Agent invents a local API URL | Misconfigured override | Omit `AUREON_API_URL` for 8788, or set `AUREON_NETWORK=testnet` |
+| Agent invents a local API URL | Misconfigured override | Omit `AUREON_API_URL` for the official API, or set `AUREON_NETWORK=mainnet` |
 
 Map structured SDK errors in tool output to the same categories; do not retry blindly on `401` without rotating credentials.
 
@@ -254,8 +254,8 @@ MCP host (Cursor / Claude)
 @buildaureon/sdk  (HTTP, retries, types)
     │  HTTP(S) + API key and/or Bearer
     ▼
-default http://127.0.0.1:8788 (4663)
-opt-in  https://api.aureonlabs.network (still 46630)
+default https://api.aureonlabs.network (46630)
+opt-in  AUREON_NETWORK=mainnet (chain 4663, same host)
     │
     ├── control plane (objectives, portfolio, restore, …)
     └── prepare vault steps → human/agent signs elsewhere
@@ -320,7 +320,7 @@ Do not reuse the compromised secret “temporarily.” Treat rotation as mandato
 
 - Issued key → API key header / client option
 - Bearer → access token via the session provider
-- Base URL → `http://127.0.0.1:8788` by default (4663). Public host is `AUREON_NETWORK=testnet` (still 46630).
+- Base URL → `https://api.aureonlabs.network` by default (currently 46630). `AUREON_NETWORK=mainnet` selects chain 4663.
 
 If a typed SDK script works with your issued key but MCP fails, compare env names (`AUREON_API_KEY` vs hard-coded client options) and confirm the host actually injects env into the stdio child process.
 
