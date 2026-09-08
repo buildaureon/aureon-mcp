@@ -1,6 +1,6 @@
 {
   "name": "@buildaureon/mcp",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "MCP server for AUREON Financial Compass: Financial Compass capital context for AI agents",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "docs",
     "examples"
@@ -30,7 +31,8 @@
     "test:e2e": "tsx tests/e2e-full.mjs",
     "test:phase2": "tsx tests/verify-phase2-session.mjs",
     "test:live-agent": "tsx tests/live-agent-exercise.mjs",
-    "verify": "tsx tests/verify-agent.ts"
+    "verify": "tsx tests/verify-agent.ts",
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
     "aureon",
@@ -45,6 +47,9 @@
     "url": "https://github.com/buildaureon/aureon-mcp"
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },
