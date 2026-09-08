@@ -1,6 +1,6 @@
 # Setup Guide
 
-Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.8` against the live AUREON API.
+Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.9` against the live AUREON API.
 
 This package is a **stdio** [Model Context Protocol](https://modelcontextprotocol.io) server. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **54 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
 
@@ -45,7 +45,7 @@ The MCP server never custodies funds and never signs chain transactions.
 | Item | Value |
 | --- | --- |
 | npm package | `@buildaureon/mcp` |
-| Version | `0.1.8` |
+| Version | `0.1.9` |
 | Depends on | `@buildaureon/sdk` |
 | Transport | stdio MCP (JSON-RPC over stdin/stdout) |
 | Tool count | 54 |
@@ -295,7 +295,7 @@ Still stuck? Confirm HTTPS reachability to the API, then re-check that the key s
 
 ### Do I need to install the package globally?
 
-No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.8` (or newer) is fetched on demand.
+No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.9` (or newer) is fetched on demand.
 
 ### Is a Bearer token required?
 
