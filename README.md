@@ -11,7 +11,7 @@ Exposes the full `@buildaureon/sdk` surface as tools for Cursor, Claude Desktop,
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP_stdio-0b0e0d?style=flat-square)](https://modelcontextprotocol.io)
-[![Version](https://img.shields.io/badge/version-0.1.1-a8e00d?style=flat-square)](https://github.com/buildaureon)
+[![Version](https://img.shields.io/badge/version-0.1.8-a8e00d?style=flat-square)](https://github.com/buildaureon)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0b0e0d?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square&logo=nodejs&logoColor=white)](#requirements--installation)
 
@@ -77,7 +77,7 @@ Traditional AI trading scripts execute isolated market orders without context, f
 * **Continuous Rules vs. One-off Swaps**: Instead of telling an agent to "buy 0.5 WETH," you register a Financial Compass Objective like *"Maintain 20% WETH weight with 3% tolerance."* The watchdog automatically monitors drift and plans restores when needed.
 * **Non-Custodial Architecture**: Your private keys stay safely in your local wallet host. The MCP server generates unsigned transaction payloads that you review and sign.
 * **Zero Infrastructure Overhead**: Standard I/O transport (`stdio`) means no local database, Docker containers, or background services to manage.
-* **Honest Settlement Receipts**: Clearly distinguishes between on-chain smart vault settlements (`vault`) and ledger-staged simulation updates (`staged`).
+* **Honest Settlement Receipts**: Clearly distinguishes between on-chain smart vault settlements (`vault`) and ledger-local staged receipts (`staged`).
 
 ---
 
@@ -86,8 +86,8 @@ Traditional AI trading scripts execute isolated market orders without context, f
 ### Requirements
 
 - **Node.js**: 20 or higher (ESM compatible)
-- **Developer API Key**: An issued key from [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**
-- **Network Access**: Outbound connectivity to `https://api.aureonlabs.network`
+- **Developer API Key**: Issued on the **same** API you will call (local 5174 Developers for 8788 / 4663, or [app.aureonlabs.network](https://app.aureonlabs.network) for the public host — still 46630)
+- **Network Access**: Default local mainnet `http://127.0.0.1:8788`. Optional `AUREON_NETWORK=testnet` for `https://api.aureonlabs.network` (still 46630)
 
 ### Installation
 
@@ -102,7 +102,7 @@ npm install @buildaureon/mcp
 npx -y @buildaureon/mcp
 ```
 
-You do not need to clone the AUREON monorepo: only the package, the live API URL, and your issued key.
+You do not need to clone the AUREON monorepo: only the package and an issued key for the network you will call.
 
 ---
 
@@ -112,9 +112,10 @@ You do not need to clone the AUREON monorepo: only the package, the live API URL
 flowchart LR
   Agent[Cursor / Claude] -->|stdio MCP| MCP["@buildaureon/mcp"]
   MCP --> SDK["@buildaureon/sdk"]
-  SDK -->|HTTPS| API[api.aureonlabs.network]
-  Utility[Operator utility] -->|wallet Bearer| API
-  API --> Vault[Smart Vault · Robinhood Chain]
+  SDK -->|default| Main[127.0.0.1:8788 / 4663]
+  SDK -->|AUREON_NETWORK=testnet| Test[api.aureonlabs.network / 46630]
+  Main --> VaultMN[Smart Vault mainnet]
+  Test --> VaultTN[Smart Vault testnet]
 ```
 
 ### Surface & Ownership Breakdown
@@ -145,11 +146,13 @@ Get your AI agent running with AUREON MCP in 4 easy steps:
 
 ### 1. Create an issued API key
 
-1. Open https://app.aureonlabs.network
-2. Connect your wallet (invite early access)
-3. Navigate to **Developers** → click **Create API Key** → copy your key once
+Issue the key on the **same** API this MCP process will call:
 
-That key identifies your wallet for control-plane tools. **No Bearer token required.**
+1. Local mainnet (default 8788 / 4663): open Living Capital on `http://127.0.0.1:5174` → **Developers**.
+2. Public testnet (optional): open https://app.aureonlabs.network → **Developers** (still chain 46630).
+3. Create API Key → copy your key once.
+
+That key identifies your wallet for control-plane tools. **No Bearer token required.** A testnet key will not authenticate the local mainnet API.
 
 ### 2. Configure Cursor IDE
 
@@ -162,7 +165,6 @@ Copy [`examples/cursor.mcp.json`](examples/cursor.mcp.json) into `.cursor/mcp.js
       "command": "npx",
       "args": ["-y", "@buildaureon/mcp"],
       "env": {
-        "AUREON_API_URL": "https://api.aureonlabs.network",
         "AUREON_API_KEY": "<issued-developer-api-key>"
       }
     }
@@ -186,7 +188,6 @@ Merge [`examples/claude-desktop.json`](examples/claude-desktop.json) into Claude
       "command": "npx",
       "args": ["-y", "@buildaureon/mcp"],
       "env": {
-        "AUREON_API_URL": "https://api.aureonlabs.network",
         "AUREON_API_KEY": "<issued-developer-api-key>"
       }
     }
@@ -215,7 +216,8 @@ Point the host `command` / `args` at the built `dist/index.js`. See [docs/setup.
 | Variable | Required | Role |
 | --- | --- | --- |
 | `AUREON_API_KEY` | Yes (recommended) | Issued developer key for product access **and** wallet identity |
-| `AUREON_API_URL` | No | Defaults to `https://api.aureonlabs.network` |
+| `AUREON_NETWORK` | No | Omit for mainnet (4663 / 8788). Set `testnet` for the public host (still 46630). |
+| `AUREON_API_URL` | No | Optional override. Must match `AUREON_NETWORK` if both are set. |
 | `AUREON_AUTH_TOKEN` | No | Optional wallet Bearer (**wins** if both key and Bearer are sent) |
 
 **Private Key Boundary**: Private keys are only needed outside MCP when signing and broadcasting deposit or withdrawal transactions. Prepare tools return unsigned transaction steps; the MCP server never signs.
@@ -285,10 +287,11 @@ flowchart TD
 
 1. `aureon_ping` → `aureon_me` (Verify connection and wallet identity)
 2. `aureon_sync_portfolio` → `aureon_get_vault_status` (Fetch marks and check vault readiness)
-3. `aureon_create_objective` (`auto`) (Register continuous financial objective)
-4. `aureon_refresh_watchdog` / `aureon_get_health` (Check health score and drift)
-5. On violation → `aureon_get_restore_plan` → `aureon_restore_objective` (Fetch plan and restore allocation)
-6. Confirm with `aureon_list_timeline` (Verify settlement receipts)
+3. If the vault is empty: `aureon_restore_objective` returns **409**. Call `aureon_prepare_vault_deposit`, return unsigned steps, and wait for the user or host wallet to broadcast. Agents do not fund the vault.
+4. `aureon_create_objective` (`auto`) (Register continuous financial objective)
+5. `aureon_refresh_watchdog` / `aureon_get_health` (Check health score and drift)
+6. On violation after the vault is funded → `aureon_get_restore_plan` → `aureon_restore_objective`
+7. Confirm with `aureon_list_timeline` (Verify settlement receipts)
 
 ### 2. Vault Deposit Path (API Key + External Signer)
 
@@ -358,10 +361,11 @@ pnpm --filter @buildaureon/mcp typecheck
 | --- | --- |
 | **[Setup Guide](docs/setup.md)** | Step-by-step setup for Cursor, Claude Desktop, npx, building from source, and troubleshooting |
 | **[Authentication Guide](docs/auth.md)** | Issued API key vs. Wallet Bearer vs. private key boundaries |
-| **[Tools Reference](docs/tools.md)** | Full 47-tool reference with arguments, schemas, and caveats |
+| **[Tools Reference](docs/tools.md)** | Full 54-tool reference with arguments, schemas, and caveats |
 | **[Agent Playbooks](docs/agent-guide.md)** | End-to-end agent decision playbooks, turn templates, and anti-patterns |
 | **[Architecture Deep Dive](docs/architecture.md)** | Module boundaries, file maps, and end-to-end request data flows |
 | **[Security Model](docs/security.md)** | Credential management, threat modeling, and operational safety |
+| **[Changelog](CHANGELOG.md)** | Published versions, including 0.1.8 networks and first-use |
 | **[`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk)** | Core TypeScript SDK documentation, types, and error definitions |
 
 ---
@@ -372,10 +376,10 @@ pnpm --filter @buildaureon/mcp typecheck
 No. You only need an issued `AUREON_API_KEY`. Private keys stay in your host wallet when signing prepare steps.
 
 **Does MCP talk to a local backend server?**  
-No. By default, it connects to the live production API at `https://api.aureonlabs.network`. Override `AUREON_API_URL` only if targeting a custom gateway.
+Yes by default. Omit `AUREON_API_URL` for local mainnet `http://127.0.0.1:8788` (chain 4663). Set `AUREON_NETWORK=testnet` for the public host (still chain 46630). `api.aureonlabs.network` is not 4663.
 
 **Why did my restore receipt say `staged`?**  
-`staged` indicates a ledger-local simulation receipt rather than an on-chain vault settlement. Always describe settlement receipts accurately in agent responses.
+`staged` is a ledger-local receipt, not an on-chain vault settlement. Always describe settlement receipts accurately in agent responses.
 
 **Can agents use Manual automation mode?**  
 Prefer Automatic (`auto`). Manual mode requires human Approval inside the operator utility app.
