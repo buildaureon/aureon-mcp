@@ -15,12 +15,12 @@ This document is for operators configuring agent hosts and for AI agents that mu
 | Private key | Never enters MCP env or process | Full fund theft if combined with broadcast capability |
 | Host LLM / agent | Can call any enabled tool | Prompt injection or confused deputy may trigger writes |
 | Operator utility | Separate wallet-Bearer UI | Unrelated to MCP, but same API identity if same wallet |
-| HTTPS to API | TLS to `https://api.aureonlabs.network` | MITM only if TLS broken or base URL pointed at attacker |
+| HTTP(S) to API | Default local 8788 (4663). Public host TLS is `https://api.aureonlabs.network` (still 46630) | MITM if URL pointed at attacker |
 
 ```mermaid
 flowchart LR
   Host[MCP_host_and_LLM] -->|tool_calls_stdio| MCP[local_MCP_adapter]
-  MCP -->|API_key_and_optional_Bearer| API[api.aureonlabs.network]
+  MCP -->|API_key_and_optional_Bearer| API[8788_or_public_testnet_host]
   MCP -.->|never_holds| PK[private_keys]
   Human[Human_operator] -->|reviews_and_signs| Chain[Robinhood_Chain]
   API --> Vault[Smart_Vault]
@@ -171,7 +171,7 @@ MCP hosts typically store command + env in a JSON (or UI) config. Hygiene rules:
 1. **Secrets only in env fields** managed by the host — not in chat history, not in repo files checked into git.
 2. **Do not commit** MCP config files that contain live keys. Prefer redacted examples in docs (see package `examples/`).
 3. **Restrict workspace access** — anyone who can edit MCP config can point the agent at their own key or change the API base URL.
-4. **Watch `AUREON_API_URL` overrides** — only use non-default bases when you intentionally target a documented non-production environment. A malicious override is a credential phishing vector.
+4. **Watch `AUREON_API_URL` overrides** — only use a non-default base when you intentionally target a documented other host (local 8788 is the omitted default; public `api.aureonlabs.network` is still testnet 46630). A malicious override is a credential phishing vector.
 5. **Browser vs agent hosting** — browser-based agent products may persist configs in cloud profiles; treat those as higher risk than a local desktop host you control. Prefer short-lived keys and aggressive revoke there.
 6. **Disable MCP** when not needed — reduce accidental write tool invocation.
 7. **Never ask the model to echo env** — including “debug by printing AUREON_API_KEY.”
@@ -207,7 +207,7 @@ Use this before enabling `@buildaureon/mcp` on a machine that can affect real ca
 - [ ] Issued API key created specifically for this host
 - [ ] Key stored only in host secret/env config (not in git)
 - [ ] Private keys absent from MCP env and agent-accessible storage
-- [ ] Default API URL is `https://api.aureonlabs.network` unless override is intentional
+- [ ] Default API is local 8788 / 4663 unless `AUREON_NETWORK=testnet` (public host still 46630)
 - [ ] Host is local stdio — not published as an open network service
 - [ ] Write tools understood by operators (`create`, `restore`, `prepare`, key CRUD)
 - [ ] Prepare → human sign → broadcast workflow documented for the team
@@ -332,4 +332,4 @@ Follow AUREON’s published support / security channels on the product site; inc
 
 ## 15. Summary
 
-Treat `@buildaureon/mcp` as a **local, non-custodial stdio adapter** over `@buildaureon/sdk` to `https://api.aureonlabs.network`. Protect issued keys like passwords, keep private keys out of the MCP process, require human (or hardened external) signing for deposit/withdraw broadcast, rotate and revoke quickly, and assume the LLM is not a security boundary — configuration hygiene and least privilege are.
+Treat `@buildaureon/mcp` as a **local, non-custodial stdio adapter** over `@buildaureon/sdk`. Default API is `http://127.0.0.1:8788` (4663); the public host is still testnet 46630. Protect issued keys like passwords, keep private keys out of the MCP process, require human (or hardened external) signing for deposit/withdraw broadcast, rotate and revoke quickly, and assume the LLM is not a security boundary — configuration hygiene and least privilege are.
