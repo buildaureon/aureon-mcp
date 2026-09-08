@@ -18,6 +18,7 @@ export type McpClientBundle = {
 export function createClient(config: McpConfig): McpClientBundle {
   const session = createSessionTokenProvider(config.authToken ?? null);
   const client = createAureonClient({
+    network: config.network,
     baseUrl: config.apiUrl,
     apiKey: config.apiKey ?? null,
     getAccessToken: session.getAccessToken,
