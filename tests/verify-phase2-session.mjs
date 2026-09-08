@@ -2,13 +2,16 @@
  * Phase 2 MCP session: registry, restore, validate, settlement, audit.
  * Never prints secrets.
  *
- * Default: local mainnet 8788 / 4663 via resolveAureonNetworkFromEnv.
- *   AUREON_NETWORK=testnet pnpm --filter @buildaureon/mcp test:phase2
- *   AUREON_API_URL=http://127.0.0.1:8787 AUREON_NETWORK=testnet ...  (local testnet)
+ * Uses the official API (https://api.aureonlabs.network) unless overridden.
+ * Credentials come from the environment only — no monorepo or PC file reads.
+ *
+ *   AUREON_API_KEY              issued developer key
+ *   AUREON_WALLET_PRIVATE_KEY   0x… signing key
+ *   AUREON_NETWORK              optional; omit = testnet 46630; mainnet = chain 4663
+ *   AUREON_API_URL              optional override of the official host
+ *
+ *   AUREON_API_KEY=… AUREON_WALLET_PRIVATE_KEY=… pnpm --filter @buildaureon/mcp test:phase2
  */
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -22,7 +25,6 @@ import { SDK_TOOL_NAMES } from "../src/tools/catalog.js";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const resolved = resolveAureonNetworkFromEnv();
 const API = resolved.baseUrl;
 const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
@@ -31,34 +33,14 @@ const RPC =
   (CHAIN_ID === 4663
     ? "https://rpc.mainnet.chain.robinhood.com"
     : "https://rpc.testnet.chain.robinhood.com");
-const useLiveKey = /aureonlabs\.network/i.test(API);
-const API_KEY =
-  process.env.AUREON_API_KEY?.trim() ||
-  (useLiveKey
-    ? firstApiKey(resolve(ROOT, "scripts/production.api.env"))
-    : firstApiKey(resolve(ROOT, "public backend/.env")));
-
-function firstApiKey(path) {
-  if (!existsSync(path)) return "";
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-    if (line.startsWith("AUREON_API_KEYS=")) {
-      return line.slice("AUREON_API_KEYS=".length).split(",")[0].trim();
-    }
-  }
-  return "";
-}
+const API_KEY = process.env.AUREON_API_KEY?.trim() || "";
 
 function loadWallet() {
   const envKey = process.env.AUREON_WALLET_PRIVATE_KEY?.trim();
-  if (envKey) return privateKeyToAccount(/** @type {`0x${string}`} */ (envKey));
-  const paths = [
-    resolve(ROOT, "public backend/.secrets/robinhood-testnet-wallet.json"),
-    resolve(ROOT, "backend/.secrets/robinhood-testnet-wallet.json"),
-  ];
-  const path = paths.find((p) => existsSync(p));
-  if (!path) throw new Error("wallet missing");
-  const raw = JSON.parse(readFileSync(path, "utf8"));
-  return privateKeyToAccount(/** @type {`0x${string}`} */ (raw.privateKey));
+  if (!envKey) {
+    throw new Error("Set AUREON_WALLET_PRIVATE_KEY (0x…). This script does not read local wallet files.");
+  }
+  return privateKeyToAccount(/** @type {`0x${string}`} */ (envKey));
 }
 
 const chain = {
@@ -73,6 +55,9 @@ function text(result) {
 }
 
 async function main() {
+  if (!API_KEY) {
+    throw new Error("Set AUREON_API_KEY. This script does not read local env files.");
+  }
   console.log(`Phase 2 MCP session → ${API}`);
   console.log(`catalog ${SDK_TOOL_NAMES.length} tools`);
   const account = loadWallet();
@@ -80,7 +65,7 @@ async function main() {
   const sdk = createAureonClient({
     network: resolved.network,
     baseUrl: API,
-    apiKey: useLiveKey && API_KEY ? API_KEY : undefined,
+    apiKey: API_KEY,
     getAccessToken: session.getAccessToken,
     timeoutMs: 90_000,
   });
