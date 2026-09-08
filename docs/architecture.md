@@ -2,7 +2,7 @@
 
 How `@buildaureon/mcp` sits on top of `@buildaureon/sdk` and the hosted AUREON API.
 
-This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the published adapter only: a thin stdio MCP server that forwards tool calls to the SDK, which talks to `https://api.aureonlabs.network`.
+This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the published adapter only: a thin stdio MCP server that forwards tool calls to the SDK. Default API is local mainnet `http://127.0.0.1:8788` (chain 4663). `AUREON_NETWORK=testnet` selects `https://api.aureonlabs.network` (still 46630).
 
 ---
 
@@ -26,7 +26,7 @@ Host (Cursor / Claude / other MCP host)
   → MCP JSON-RPC over stdio
     → mcp handlers + Zod
       → @buildaureon/sdk HTTP client
-        → https://api.aureonlabs.network
+        → http://127.0.0.1:8788 (4663) or public testnet host (46630)
           → vault / Robinhood Chain settlement path
 ```
 
@@ -55,7 +55,7 @@ flowchart TB
     ErrModel[Error_codes]
   end
 
-  API[api.aureonlabs.network]
+  API[8788_mainnet_or_public_testnet]
   Vault[Smart_Vault]
   Chain[Robinhood_Chain]
 
@@ -109,7 +109,7 @@ Rule of thumb: if a change affects every AUREON client (CLI scripts, bots, MCP),
 
 1. Host launches `aureon-mcp` (or `npx -y @buildaureon/mcp`) with environment variables.
 2. `src/index.ts` calls `startServer()` from `server.ts`.
-3. `loadConfig()` reads `AUREON_API_URL` (default production API), `AUREON_API_KEY`, and optional `AUREON_AUTH_TOKEN`.
+3. `loadConfig()` uses `resolveAureonNetworkFromEnv()` (default 8788 / 4663; `AUREON_NETWORK=testnet` for the public host, still 46630), plus `AUREON_API_KEY` and optional `AUREON_AUTH_TOKEN`.
 4. Startup requires at least one credential: issued API key and/or initial Bearer.
 5. `createClient()` builds a `SessionTokenProvider` and an `AureonClient` bound to that provider.
 6. `registerTools()` attaches the full tool catalog to an `McpServer` instance.
@@ -231,7 +231,7 @@ MCP does not invent new error codes. Codes originate in the SDK / API so scripts
 
 ### Lives in `@buildaureon/sdk`
 
-- HTTP transport to `https://api.aureonlabs.network` (or configured base URL).
+- HTTP transport to the resolved network URL (default 8788 / 4663, or the public testnet host).
 - Header composition (API key + Bearer).
 - Retries, timeouts, and typed client methods.
 - Shared types for objectives, health, restore plans, vault prepare results.
@@ -289,7 +289,7 @@ Supporting package docs (`setup`, `auth`, `tools`, `agent-guide`, `security`) de
 | `@buildaureon/mcp` package version | Adapter release (tool catalog, schemas, formatting) |
 | MCP server `version` field | Mirrors package version reported to hosts |
 | `@buildaureon/sdk` dependency | Protocol / client contract with the API |
-| API at `api.aureonlabs.network` | Server-side behavior; may evolve independently |
+| Public API `api.aureonlabs.network` | Server-side behavior on **testnet 46630**; may evolve independently |
 
 Compatibility expectations:
 
@@ -374,4 +374,4 @@ The utility remains a separate wallet-Bearer UI. MCP does not replace it.
 
 ## 14. Summary
 
-`@buildaureon/mcp` is a **thin stdio adapter**: Host → MCP handlers/Zod → `@buildaureon/sdk` → `https://api.aureonlabs.network` → vault/chain. Responsibilities are split so agents get a stable tool surface while all financial intelligence and custody boundaries remain outside the MCP process.
+`@buildaureon/mcp` is a **thin stdio adapter**: Host → MCP handlers/Zod → `@buildaureon/sdk` → resolved API (default 8788 / 4663; public host still 46630) → vault/chain. Responsibilities are split so agents get a stable tool surface while all financial intelligence and custody boundaries remain outside the MCP process.
