@@ -5,10 +5,9 @@
  * Usage:
  *   AUREON_API_KEY=… tsx tests/verify-agent.ts
  *
- * Defaults to local mainnet http://127.0.0.1:8788 (4663) via resolveAureonNetworkFromEnv.
- * Set AUREON_NETWORK=testnet for the public host (still 46630). Optional AUREON_AUTH_TOKEN.
- * If AUREON_API_KEY is unset, falls back to the first key in
- * ../scripts/production.api.env (monorepo maintainers only).
+ * Default API is https://api.aureonlabs.network (testnet 46630).
+ * Set AUREON_NETWORK=mainnet for chain 4663 on the same official host.
+ * Optional AUREON_AUTH_TOKEN. Credentials come from the environment only.
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -47,17 +46,6 @@ function fail(msg: string) {
 
 function warn(msg: string) {
   console.log(`  WARN  ${msg}`);
-}
-
-function loadProdKey(): string {
-  const envPath = path.resolve(root, "../scripts/production.api.env");
-  if (!fs.existsSync(envPath)) return "";
-  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
-    if (line.startsWith("AUREON_API_KEYS=")) {
-      return line.slice("AUREON_API_KEYS=".length).split(",")[0].trim();
-    }
-  }
-  return "";
 }
 
 async function callTool(
@@ -171,7 +159,7 @@ async function main() {
     report.passed++;
   }
 
-  const apiKey = savedKey || loadProdKey() || "test-key";
+  const apiKey = savedKey || "test-key";
   process.env.AUREON_API_KEY = apiKey;
   if (savedToken) process.env.AUREON_AUTH_TOKEN = savedToken;
   try {
