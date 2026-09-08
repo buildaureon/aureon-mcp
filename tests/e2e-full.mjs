@@ -4,8 +4,9 @@
  * Env (public / CI friendly — no monorepo paths):
  *   AUREON_API_KEY              issued developer key OR product gate key
  *   AUREON_WALLET_PRIVATE_KEY   0x… signing key (required for wallet auth + broadcast)
- *   AUREON_API_URL              optional (default https://api.aureonlabs.network)
- *   AUREON_RPC_URL              optional
+ *   AUREON_NETWORK              optional; omit for mainnet 8788 / 4663; testnet = public host (still 46630)
+ *   AUREON_API_URL              optional override
+ *   AUREON_RPC_URL              optional (defaults from resolved chain)
  *   AUREON_E2E_INVITE_CODE      optional invite for first wallet login
  *
  * Run: pnpm --filter @buildaureon/mcp test:e2e
@@ -13,16 +14,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createAureonClient, createSessionTokenProvider } from "@buildaureon/sdk";
+import { createAureonClient, createSessionTokenProvider, resolveAureonNetworkFromEnv } from "@buildaureon/sdk";
 import { registerTools } from "../src/tools/index.js";
 import { SDK_TOOL_NAMES } from "../src/tools/catalog.js";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-const API_URL = process.env.AUREON_API_URL?.trim() || "https://api.aureonlabs.network";
+const resolved = resolveAureonNetworkFromEnv();
+const API_URL = resolved.baseUrl;
 const API_KEY = process.env.AUREON_API_KEY?.trim();
-const RPC = process.env.AUREON_RPC_URL?.trim() || "https://rpc.testnet.chain.robinhood.com";
-const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || 46630);
+const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
+const RPC =
+  process.env.AUREON_RPC_URL?.trim() ||
+  (CHAIN_ID === 4663
+    ? "https://rpc.mainnet.chain.robinhood.com"
+    : "https://rpc.testnet.chain.robinhood.com");
 
 if (!API_KEY) {
   console.error("Set AUREON_API_KEY (issued developer key preferred)");
@@ -57,6 +63,7 @@ function loadWallet() {
 }
 
 const sdk = createAureonClient({
+  network: resolved.network,
   baseUrl: API_URL,
   apiKey: API_KEY,
   getAccessToken: session.getAccessToken,
