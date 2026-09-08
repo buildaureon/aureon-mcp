@@ -4,7 +4,6 @@
       "command": "npx",
       "args": ["-y", "@buildaureon/mcp"],
       "env": {
-        "AUREON_API_URL": "https://api.aureonlabs.network",
         "AUREON_API_KEY": "<issued-developer-api-key>"
       }
     }
