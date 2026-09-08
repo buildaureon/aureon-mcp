@@ -1,5 +1,6 @@
 /**
- * Live agent exercise — MCP tools against https://api.aureonlabs.network
+ * Live agent exercise — MCP tools against the resolved AUREON API
+ * (default local mainnet 8788 / 4663; AUREON_NETWORK=testnet for public host, still 46630).
  * Creates objective, syncs portfolio, prepares vault deposit, optionally broadcasts.
  *
  * Required env:
@@ -17,7 +18,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createAureonClient, createSessionTokenProvider } from "@buildaureon/sdk";
+import { createAureonClient, createSessionTokenProvider, resolveAureonNetworkFromEnv } from "@buildaureon/sdk";
 import { registerTools } from "../src/tools/index.js";
 import {
   createPublicClient,
@@ -26,12 +27,17 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-const API_URL = process.env.AUREON_API_URL?.trim() || "https://api.aureonlabs.network";
+const resolved = resolveAureonNetworkFromEnv();
+const API_URL = resolved.baseUrl;
 const API_KEY = process.env.AUREON_API_KEY?.trim();
 const PK = process.env.AUREON_WALLET_PRIVATE_KEY?.trim();
-const RPC = process.env.AUREON_RPC_URL?.trim() || "https://rpc.testnet.chain.robinhood.com";
+const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
+const RPC =
+  process.env.AUREON_RPC_URL?.trim() ||
+  (CHAIN_ID === 4663
+    ? "https://rpc.mainnet.chain.robinhood.com"
+    : "https://rpc.testnet.chain.robinhood.com");
 const BROADCAST = process.env.AUREON_BROADCAST === "1";
-const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || 46630);
 
 if (!API_KEY) {
   console.error("Set AUREON_API_KEY");
@@ -54,6 +60,7 @@ const publicClient = createPublicClient({ chain, transport: http(RPC) });
 
 const session = createSessionTokenProvider(null);
 const sdk = createAureonClient({
+  network: resolved.network,
   baseUrl: API_URL,
   apiKey: API_KEY,
   getAccessToken: session.getAccessToken,
