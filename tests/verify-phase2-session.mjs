@@ -2,7 +2,9 @@
  * Phase 2 MCP session: registry, restore, validate, settlement, audit.
  * Never prints secrets.
  *
- *   AUREON_API_URL=http://127.0.0.1:8787 pnpm --filter @buildaureon/mcp test:phase2
+ * Default: local mainnet 8788 / 4663 via resolveAureonNetworkFromEnv.
+ *   AUREON_NETWORK=testnet pnpm --filter @buildaureon/mcp test:phase2
+ *   AUREON_API_URL=http://127.0.0.1:8787 AUREON_NETWORK=testnet ...  (local testnet)
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -10,16 +12,25 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createAureonClient, createSessionTokenProvider } from "@buildaureon/sdk";
+import {
+  createAureonClient,
+  createSessionTokenProvider,
+  resolveAureonNetworkFromEnv,
+} from "@buildaureon/sdk";
 import { registerTools } from "../src/tools/index.js";
 import { SDK_TOOL_NAMES } from "../src/tools/catalog.js";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const API = process.env.AUREON_API_URL?.trim() || "http://127.0.0.1:8787";
-const RPC = process.env.AUREON_RPC_URL?.trim() || "https://rpc.testnet.chain.robinhood.com";
-const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || 46630);
+const resolved = resolveAureonNetworkFromEnv();
+const API = resolved.baseUrl;
+const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
+const RPC =
+  process.env.AUREON_RPC_URL?.trim() ||
+  (CHAIN_ID === 4663
+    ? "https://rpc.mainnet.chain.robinhood.com"
+    : "https://rpc.testnet.chain.robinhood.com");
 const useLiveKey = /aureonlabs\.network/i.test(API);
 const API_KEY =
   process.env.AUREON_API_KEY?.trim() ||
@@ -67,6 +78,7 @@ async function main() {
   const account = loadWallet();
   const session = createSessionTokenProvider(null);
   const sdk = createAureonClient({
+    network: resolved.network,
     baseUrl: API,
     apiKey: useLiveKey && API_KEY ? API_KEY : undefined,
     getAccessToken: session.getAccessToken,
