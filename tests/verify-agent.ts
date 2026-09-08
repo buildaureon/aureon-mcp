@@ -5,7 +5,8 @@
  * Usage:
  *   AUREON_API_KEY=… tsx tests/verify-agent.ts
  *
- * Defaults to https://api.aureonlabs.network. Optional AUREON_AUTH_TOKEN.
+ * Defaults to local mainnet http://127.0.0.1:8788 (4663) via resolveAureonNetworkFromEnv.
+ * Set AUREON_NETWORK=testnet for the public host (still 46630). Optional AUREON_AUTH_TOKEN.
  * If AUREON_API_KEY is unset, falls back to the first key in
  * ../scripts/production.api.env (monorepo maintainers only).
  */
@@ -19,6 +20,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import {
   createAureonClient,
   createSessionTokenProvider,
+  resolveAureonNetworkFromEnv,
 } from "@buildaureon/sdk";
 import { registerTools, SDK_TOOL_NAMES, TOOL_COUNT } from "../src/tools/index.js";
 import { loadConfig } from "../src/config.js";
@@ -182,12 +184,14 @@ async function main() {
   }
 
   section("6. MCP tool catalog (in-memory agent simulation)");
-  const apiUrl = process.env.AUREON_API_URL || "https://api.aureonlabs.network";
+  const resolved = resolveAureonNetworkFromEnv();
+  const apiUrl = resolved.baseUrl;
   const authToken = process.env.AUREON_AUTH_TOKEN || "";
 
   const server = new McpServer({ name: "verify", version: "0.0.0" });
   const session = createSessionTokenProvider(authToken || null);
   const sdk = createAureonClient({
+    network: resolved.network,
     baseUrl: apiUrl,
     apiKey: apiKey || undefined,
     getAccessToken: session.getAccessToken,
