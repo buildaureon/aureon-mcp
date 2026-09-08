@@ -3,7 +3,8 @@
  *
  * Env:
  *   AUREON_API_KEY   required (issued developer key preferred)
- *   AUREON_API_URL   optional (default https://api.aureonlabs.network)
+ *   AUREON_NETWORK   optional; omit for mainnet 8788 / 4663; testnet = public host (still 46630)
+ *   AUREON_API_URL   optional override
  *   AUREON_AUTH_TOKEN optional Bearer
  *
  * Run: pnpm --filter @buildaureon/mcp exec tsx tests/tx-live.mjs
@@ -11,10 +12,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createAureonClient, createSessionTokenProvider } from "@buildaureon/sdk";
+import { createAureonClient, createSessionTokenProvider, resolveAureonNetworkFromEnv } from "@buildaureon/sdk";
 import { registerTools } from "../src/tools/index.js";
 
-const API_URL = process.env.AUREON_API_URL?.trim() || "https://api.aureonlabs.network";
+const resolved = resolveAureonNetworkFromEnv();
+const API_URL = resolved.baseUrl;
 const API_KEY = process.env.AUREON_API_KEY?.trim();
 const AUTH_TOKEN = process.env.AUREON_AUTH_TOKEN?.trim() || null;
 
@@ -43,6 +45,7 @@ const DUMMY_POSITIONS = [
 const session = createSessionTokenProvider(AUTH_TOKEN);
 
 const sdk = createAureonClient({
+  network: resolved.network,
   baseUrl: API_URL,
   apiKey: API_KEY || undefined,
   getAccessToken: session.getAccessToken,
