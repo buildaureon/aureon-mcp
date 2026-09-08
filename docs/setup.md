@@ -28,8 +28,8 @@ If you only want auth semantics (key vs Bearer vs private key), skip ahead to [.
 | Requirement | Notes |
 | --- | --- |
 | **Node.js 20+** | ESM runtime. Check with `node -v`. |
-| **Issued developer API key** | Issue the key on the **same** API you will call. Local mainnet: Developers on `http://127.0.0.1:5174`. Public testnet: [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers** (still chain 46630). Plaintext is shown once. |
-| **Network access** | Default is local mainnet `http://127.0.0.1:8788` (chain 4663). Optional `AUREON_NETWORK=testnet` uses `https://api.aureonlabs.network` (still 46630). |
+| **Issued developer API key** | Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Plaintext is shown once. |
+| **Network access** | Default is the official API `https://api.aureonlabs.network` (currently chain 46630). Optional `AUREON_NETWORK=mainnet` selects chain 4663 on the same host. |
 | **MCP host** | Cursor, Claude Desktop, or any client that can launch a stdio MCP server. |
 
 You do **not** need a wallet Bearer token for day-to-day control-plane tools when you use an issued key.
@@ -49,7 +49,7 @@ The MCP server never custodies funds and never signs chain transactions.
 | Depends on | `@buildaureon/sdk` |
 | Transport | stdio MCP (JSON-RPC over stdin/stdout) |
 | Tool count | 54 |
-| Default API | `http://127.0.0.1:8788` (4663). Public host is opt-in testnet 46630. |
+| Default API | `https://api.aureonlabs.network` (testnet 46630). `AUREON_NETWORK=mainnet` selects chain 4663. |
 | Console | [app.aureonlabs.network](https://app.aureonlabs.network) |
 
 Primary launch command (recommended for hosts):
@@ -68,12 +68,12 @@ The process reads these at startup. Put them in your MCP host `env` block (Curso
 | --- | --- | --- | --- |
 | `AUREON_API_KEY` | **Preferred** | — | Issued developer key (`aureon_…`). Product access **and** wallet identity for control-plane tools. |
 | `AUREON_AUTH_TOKEN` | Optional | — | Wallet Bearer session. Wins over key identity when both are present on a request. |
-| `AUREON_NETWORK` | Optional | `mainnet` | Omit for local mainnet 4663 / 8788. Set `testnet` for the public host (still 46630). |
-| `AUREON_API_URL` | Optional | mainnet `http://127.0.0.1:8788` | Override URL. Must match `AUREON_NETWORK` if both are set. |
+| `AUREON_NETWORK` | Optional | `testnet` | Omit for official API / 46630. Set `mainnet` for chain 4663. |
+| `AUREON_API_URL` | Optional | `https://api.aureonlabs.network` | Override the official host only if you must. |
 
 At least one of `AUREON_API_KEY` or `AUREON_AUTH_TOKEN` must be set or the server refuses to start.
 
-**Recommendation:** set only `AUREON_API_KEY` for local mainnet. Add `AUREON_NETWORK=testnet` only if you want the public host (still 46630).
+**Recommendation:** set only `AUREON_API_KEY`. The process uses the official API. Add `AUREON_NETWORK=mainnet` only if you want chain 4663 on that host.
 
 Never put a wallet private key in MCP env. Prepare tools return unsigned calldata; the host wallet signs elsewhere.
 
@@ -117,7 +117,7 @@ Restart Cursor (or reload MCP servers). Confirm **aureon** appears under MCP / t
 
 Ask a smoke prompt such as: *“Use aureon_ping, then aureon_me.”*
 
-Issue the key on the same network this process will call. A public-console key does not authenticate the local 8788 mainnet API. To hit the public host (still 46630), add `"AUREON_NETWORK": "testnet"`.
+Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. The official API is used when `AUREON_API_URL` is omitted. Add `"AUREON_NETWORK": "mainnet"` only to select chain 4663.
 
 ### Option B — from a local build
 
@@ -176,8 +176,8 @@ From a terminal, with the key in the environment:
 
 ```bash
 export AUREON_API_KEY=aureon_....
-# omit AUREON_API_URL for local mainnet 8788 / 4663
-# export AUREON_NETWORK=testnet   # public host, still 46630
+# omit AUREON_API_URL for official API https://api.aureonlabs.network
+# export AUREON_NETWORK=mainnet   # chain 4663 on the same official host
 
 npx -y @buildaureon/mcp
 ```
@@ -186,8 +186,8 @@ On Windows PowerShell:
 
 ```powershell
 $env:AUREON_API_KEY = "aureon_...."
-# omit AUREON_API_URL for local mainnet 8788 / 4663
-# $env:AUREON_NETWORK = "testnet"   # public host, still 46630
+# omit AUREON_API_URL for official API https://api.aureonlabs.network
+# $env:AUREON_NETWORK = "mainnet"   # chain 4663 on the same official host
 npx -y @buildaureon/mcp
 ```
 
@@ -281,7 +281,7 @@ Vault **prepare** tools return unsigned steps only. Signing and broadcasting sta
 | Startup error about missing credentials | Neither key nor Bearer set | Set `AUREON_API_KEY` in the host `env` block |
 | `401` / unauthorized on tools | Bad, paused, or revoked key | Create a new issued key; update config |
 | `npx` hangs or fails | Network / registry issue | Retry; ensure Node 20+; try `npm view @buildaureon/mcp version` |
-| Tools listed but every call fails | Wrong URL / mixed network | Omit `AUREON_API_URL` for 8788, or set `AUREON_NETWORK=testnet` for the public host (still 46630) |
+| Tools listed but every call fails | Wrong URL / mixed network | Omit `AUREON_API_URL` for the official API, or set `AUREON_NETWORK=mainnet` for chain 4663 |
 | `aureon_me` shows unexpected wallet | Bearer also set and winning | Clear `AUREON_AUTH_TOKEN` / logout; prefer key-only — see [./auth.md](./auth.md) |
 | Local `node dist/index.js` fails | Missing build | Run `pnpm build` so `dist/index.js` exists |
 | Deposit / withdraw “not signed” | Expected | MCP returns unsigned steps; sign outside MCP |
@@ -307,7 +307,7 @@ No. Keep private keys out of MCP. Use them only in a separate signing host when 
 
 ### Does MCP talk to a local backend?
 
-Default (omit `AUREON_API_URL`) is local mainnet `http://127.0.0.1:8788` (chain 4663). Set `AUREON_NETWORK=testnet` only for the public host (still 46630). Do not map mainnet to `api.aureonlabs.network`.
+Default (omit `AUREON_API_URL`) is the official API `https://api.aureonlabs.network` (currently chain 46630). Set `AUREON_NETWORK=mainnet` to select chain 4663 on that same host.
 
 ### How is this different from `@buildaureon/sdk`?
 
@@ -329,7 +329,7 @@ Node.js **20 or newer**. Older runtimes are unsupported.
 - [ ] Issued key created on the Developers page
 - [ ] Host config uses `npx -y @buildaureon/mcp` (or local `node dist/index.js` with a placeholder cwd)
 - [ ] `AUREON_API_KEY` set in host `env` (no private key)
-- [ ] `AUREON_API_URL` omitted (mainnet 8788). Optional `AUREON_NETWORK=testnet` for the public host (still 46630)
+- [ ] `AUREON_API_URL` omitted (official API). Optional `AUREON_NETWORK=mainnet` for chain 4663
 - [ ] Host restarted; aureon server shows connected
 - [ ] `aureon_ping` succeeds
 - [ ] `aureon_me` returns the expected wallet
