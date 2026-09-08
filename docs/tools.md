@@ -8,7 +8,7 @@ For request/response shapes, error codes, and HTTP contracts, see the **@buildau
 
 **Tool count:** 54.
 
-**API:** default local mainnet `http://127.0.0.1:8788` (chain 4663). Optional `AUREON_NETWORK=testnet` uses `https://api.aureonlabs.network` (still 46630).
+**API:** default official API `https://api.aureonlabs.network` (testnet 46630). Optional `AUREON_NETWORK=mainnet` selects chain 4663 on the same host.
 
 ---
 
@@ -20,7 +20,7 @@ These conventions apply to every tool below.
 | --- | --- |
 | Issued API key | Set `AUREON_API_KEY` to an issued Developers key. That key is product access **and** wallet identity for control-plane calls. |
 | Optional Bearer | You may also supply a wallet Bearer (`AUREON_AUTH_TOKEN` or `aureon_verify_wallet`). If both key and Bearer are present, Bearer wins. |
-| Default network | Local mainnet 8788 / 4663. Optional `AUREON_NETWORK=testnet` for the public host (still 46630). |
+| Default network | Official API / testnet 46630. Optional `AUREON_NETWORK=mainnet` for chain 4663. |
 | Private key outside MCP | Deposit and withdraw **prepare** tools return unsigned steps. Signing and broadcast happen in the host wallet — never inside the MCP process. |
 | Default automation | `aureon_create_objective` defaults `automationMode` to `"auto"`. |
 | Locked at create | `targetSymbol` and `automationMode` are immutable after create. Recreate the objective to change them. |
@@ -32,7 +32,7 @@ The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it
 ### Auth bootstrap (agents)
 
 1. Create an issued key in the operator utility **Developers** console.
-2. Configure the MCP host with `AUREON_API_KEY`. Omit `AUREON_API_URL` for local mainnet 8788. Set `AUREON_NETWORK=testnet` only for the public host (still 46630).
+2. Configure the MCP host with `AUREON_API_KEY`. Omit `AUREON_API_URL` to use the official API. Set `AUREON_NETWORK=mainnet` only for chain 4663.
 3. Call tools. Day-to-day agent work does **not** require a wallet handshake.
 
 Optional wallet path: `aureon_get_auth_nonce` → host signs → `aureon_verify_wallet`. Prefer issued keys for always-on agents.
