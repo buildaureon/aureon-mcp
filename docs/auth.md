@@ -1,6 +1,6 @@
 # Authentication Guide
 
-How **`@buildaureon/mcp`** `v0.1.1` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **43** stdio tools.
+How **`@buildaureon/mcp`** `v0.1.8` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **54** stdio tools.
 
 Related docs: [Setup](./setup.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -19,7 +19,7 @@ If you have not configured the host yet, start with [./setup.md](./setup.md), th
 
 ## Goals of MCP auth
 
-1. Reach `https://api.aureonlabs.network` with credentials the gateway accepts.
+1. Reach the resolved API (default local mainnet `http://127.0.0.1:8788` / 4663). Opt in to the public host with `AUREON_NETWORK=testnet` (still 46630).
 2. Bind control-plane actions to a wallet identity (issued key or Bearer session).
 3. Keep signing and broadcasting of on-chain vault steps **outside** MCP.
 4. Prefer a long-lived issued key for always-on agents over interactive wallet handshakes.
@@ -49,9 +49,10 @@ Plain language:
 
 | Variable | Role |
 | --- | --- |
-| `AUREON_API_KEY` | Preferred. Issued developer key from [app.aureonlabs.network](https://app.aureonlabs.network) **Developers**. |
+| `AUREON_API_KEY` | Preferred. Issued developer key. |
 | `AUREON_AUTH_TOKEN` | Optional Bearer. Use when you intentionally want a session without (or in addition to) a key — see conflict rules below. |
-| `AUREON_API_URL` | Defaults to `https://api.aureonlabs.network`. Leave default for public use. |
+| `AUREON_NETWORK` | Optional. Omit for mainnet (4663 / 8788). Set `testnet` for the public host (still 46630). |
+| `AUREON_API_URL` | Optional override. Must match `AUREON_NETWORK` if both are set. |
 
 Startup rule: at least one of `AUREON_API_KEY` or `AUREON_AUTH_TOKEN` must be set or the MCP process exits with a clear error.
 
@@ -65,18 +66,18 @@ This is the default for Cursor, Claude, and other always-on agents.
 
 ### Steps
 
-1. Open [https://app.aureonlabs.network](https://app.aureonlabs.network).
+1. Issue a key on the **same** API you will call. Local mainnet: Developers on `http://127.0.0.1:5174`. Public testnet: [app.aureonlabs.network](https://app.aureonlabs.network) (still 46630).
 2. Connect the wallet that should own objectives and Capital Book state.
 3. Open **Developers** and create a key (name it after the host, e.g. `cursor-mcp`).
 4. Copy the secret once into the host MCP `env` as `AUREON_API_KEY`.
 5. Do **not** set `AUREON_AUTH_TOKEN` unless you have a specific reason.
 6. Restart the host and call `aureon_ping` then `aureon_me`.
 
-Minimal env:
+Minimal env (local mainnet 8788 / 4663):
 
 ```bash
-AUREON_API_URL=https://api.aureonlabs.network
 AUREON_API_KEY=aureon_....
+# AUREON_NETWORK=testnet   # only for the public host (still 46630)
 ```
 
 With only the issued key, agents can sync portfolio, create objectives, fetch restore plans, restore, refresh watchdog, and manage developer keys — without an interactive signature each session.
@@ -218,9 +219,9 @@ Never paste a private key into MCP tool arguments or host env “for convenience
 | `401` Unauthorized | Key revoked/paused, Bearer expired, or typo | Rotate key or re-verify wallet |
 | Wrong wallet on `aureon_me` | Bearer winning over key | `aureon_logout`; remove env Bearer; restart |
 | `aureon_verify_wallet` fails | Bad signature, stale nonce, or missing invite | New nonce; re-sign; supply `inviteCode` if required |
-| `aureon_dev_login` fails on live API | Expected | Use issued key on `https://api.aureonlabs.network` |
+| `aureon_dev_login` fails on live API | Expected | Use an issued key. Public host is still 46630. |
 | Prepare tools succeed but funds do not move | Unsigned steps not broadcast | Sign outside MCP with a real wallet |
-| Agent invents a local API URL | Misconfigured override | Reset `AUREON_API_URL` to the live default |
+| Agent invents a local API URL | Misconfigured override | Omit `AUREON_API_URL` for 8788, or set `AUREON_NETWORK=testnet` |
 
 Map structured SDK errors in tool output to the same categories; do not retry blindly on `401` without rotating credentials.
 
@@ -251,9 +252,10 @@ MCP host (Cursor / Claude)
     │
     ▼
 @buildaureon/sdk  (HTTP, retries, types)
-    │  HTTPS + API key and/or Bearer
+    │  HTTP(S) + API key and/or Bearer
     ▼
-https://api.aureonlabs.network
+default http://127.0.0.1:8788 (4663)
+opt-in  https://api.aureonlabs.network (still 46630)
     │
     ├── control plane (objectives, portfolio, restore, …)
     └── prepare vault steps → human/agent signs elsewhere
@@ -318,11 +320,11 @@ Do not reuse the compromised secret “temporarily.” Treat rotation as mandato
 
 - Issued key → API key header / client option
 - Bearer → access token via the session provider
-- Base URL → `https://api.aureonlabs.network` by default
+- Base URL → `http://127.0.0.1:8788` by default (4663). Public host is `AUREON_NETWORK=testnet` (still 46630).
 
 If a typed SDK script works with your issued key but MCP fails, compare env names (`AUREON_API_KEY` vs hard-coded client options) and confirm the host actually injects env into the stdio child process.
 
-Package version for this guide: **`@buildaureon/mcp` `v0.1.1`**.
+Package version for this guide: **`@buildaureon/mcp` `v0.1.8`**.
 
 ---
 
