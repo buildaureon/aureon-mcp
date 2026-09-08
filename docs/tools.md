@@ -6,9 +6,9 @@ Each tool maps to one public method on the `@buildaureon/sdk` client. Handlers v
 
 For request/response shapes, error codes, and HTTP contracts, see the **@buildaureon/sdk documentation**.
 
-**Tool count:** 52.
+**Tool count:** 54.
 
-**API:** `https://api.aureonlabs.network` (Robinhood Chain L2, early access).
+**API:** default local mainnet `http://127.0.0.1:8788` (chain 4663). Optional `AUREON_NETWORK=testnet` uses `https://api.aureonlabs.network` (still 46630).
 
 ---
 
@@ -20,19 +20,19 @@ These conventions apply to every tool below.
 | --- | --- |
 | Issued API key | Set `AUREON_API_KEY` to an issued Developers key. That key is product access **and** wallet identity for control-plane calls. |
 | Optional Bearer | You may also supply a wallet Bearer (`AUREON_AUTH_TOKEN` or `aureon_verify_wallet`). If both key and Bearer are present, Bearer wins. |
-| Live API only | Tools talk to the live AUREON gateway. There is no local-backend mode for agents. |
+| Default network | Local mainnet 8788 / 4663. Optional `AUREON_NETWORK=testnet` for the public host (still 46630). |
 | Private key outside MCP | Deposit and withdraw **prepare** tools return unsigned steps. Signing and broadcast happen in the host wallet — never inside the MCP process. |
 | Default automation | `aureon_create_objective` defaults `automationMode` to `"auto"`. |
 | Locked at create | `targetSymbol` and `automationMode` are immutable after create. Recreate the objective to change them. |
 | Unsigned prepare | `aureon_prepare_vault_deposit` and `aureon_prepare_vault_withdraw` never broadcast. |
 | Settlement honesty | Restore / execution receipts may show `settlement: "vault"` (on-chain) or `"staged"` (ledger-local). Label them honestly. |
 
-The catalog includes `aureon_dev_login` for preview APIs only. On the live production API it fails by design — agents should use an issued key (or optional Bearer) instead.
+The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it fails by design — agents should use an issued key (or optional Bearer) instead. The public host is still testnet 46630, not 4663.
 
 ### Auth bootstrap (agents)
 
 1. Create an issued key in the operator utility **Developers** console.
-2. Configure the MCP host with `AUREON_API_URL=https://api.aureonlabs.network` and `AUREON_API_KEY`.
+2. Configure the MCP host with `AUREON_API_KEY`. Omit `AUREON_API_URL` for local mainnet 8788. Set `AUREON_NETWORK=testnet` only for the public host (still 46630).
 3. Call tools. Day-to-day agent work does **not** require a wallet handshake.
 
 Optional wallet path: `aureon_get_auth_nonce` → host signs → `aureon_verify_wallet`. Prefer issued keys for always-on agents.
@@ -360,7 +360,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 ### `aureon_list_market_presets`
 
-**Purpose:** List available market-event simulation presets for rehearsal.
+**Purpose:** List available controlled market-event presets for rehearsal.
 
 **Typical args:** none.
 
@@ -565,7 +565,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **When to use:** After a clear breach and a reviewed restore plan.
 
-**Caveats:** Automatic + configured vault that cannot execute returns 409 — it does not stage a fake restore. Manual may stage. Empty vault blocks Automatic on-chain restore. Confirm with `aureon_list_timeline` / `aureon_list_executions`. Read `settlement`, `verifiedOnChain`, `explorerUrl`, and `registryRef` on every receipt.
+**Caveats:** Automatic + configured vault that cannot execute returns 409 — it does not record a vault restore. Manual may produce a staged (ledger-local) receipt. Empty vault blocks Automatic on-chain restore; return unsigned `aureon_prepare_vault_deposit` steps and wait for the user. Confirm with `aureon_list_timeline` / `aureon_list_executions`. Read `settlement`, `verifiedOnChain`, `explorerUrl`, and `registryRef` on every receipt.
 
 ### How to read a receipt (agents)
 
