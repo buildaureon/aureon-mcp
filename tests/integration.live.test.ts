@@ -7,7 +7,8 @@
  *   AUREON_AUTH_TOKEN=Bearer…
  *   AUREON_WALLET_PRIVATE_KEY=0x…         (signs nonce → Bearer for the suite)
  *
- * Optional: AUREON_API_URL (default https://api.aureonlabs.network)
+ * Optional: AUREON_NETWORK (omit = mainnet 8788 / 4663; testnet = public host, still 46630)
+ * Optional: AUREON_API_URL (overrides; must match network if both set)
  * Optional: AUREON_E2E_INVITE_CODE
  *
  * Note: product-gate bootstrap keys alone cannot identify a wallet — those
@@ -21,12 +22,14 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import {
   createAureonClient,
   createSessionTokenProvider,
+  resolveAureonNetworkFromEnv,
 } from "@buildaureon/sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { registerTools } from "../src/tools/index.js";
 
 const LIVE = process.env.AUREON_MCP_LIVE_TEST === "1";
-const API_URL = process.env.AUREON_API_URL || "https://api.aureonlabs.network";
+const resolved = resolveAureonNetworkFromEnv();
+const API_URL = resolved.baseUrl;
 const API_KEY = process.env.AUREON_API_KEY || "";
 let AUTH_TOKEN = process.env.AUREON_AUTH_TOKEN || "";
 const WALLET_PK = process.env.AUREON_WALLET_PRIVATE_KEY?.trim() || "";
@@ -38,6 +41,7 @@ async function ensureWalletSession(): Promise<void> {
   if (!/^0x[0-9a-fA-F]{64}$/.test(WALLET_PK)) return;
   const account = privateKeyToAccount(WALLET_PK as `0x${string}`);
   const sdk = createAureonClient({
+    network: resolved.network,
     baseUrl: API_URL,
     apiKey: API_KEY || undefined,
   });
@@ -59,6 +63,7 @@ async function createLiveClient() {
   const server = new McpServer({ name: "live-test", version: "0.0.0" });
   const session = createSessionTokenProvider(AUTH_TOKEN || null);
   const sdk = createAureonClient({
+    network: resolved.network,
     baseUrl: API_URL,
     apiKey: API_KEY || undefined,
     getAccessToken: session.getAccessToken,
