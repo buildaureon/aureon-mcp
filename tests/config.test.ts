@@ -1,10 +1,10 @@
 /**
- * @fileoverview MCP loadConfig network resolution.
+ * @fileoverview MCP loadConfig official API default.
  */
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MAINNET_API_BASE_URL, TESTNET_API_BASE_URL } from "@buildaureon/sdk";
+import { OFFICIAL_API_BASE_URL } from "@buildaureon/sdk";
 import { loadConfig } from "../src/config.js";
 
 function withEnv(
@@ -29,7 +29,7 @@ function withEnv(
   }
 }
 
-test("MCP default network is mainnet 8788", () => {
+test("MCP default is the official API / testnet 46630", () => {
   withEnv(
     {
       AUREON_API_KEY: "test-key",
@@ -39,56 +39,42 @@ test("MCP default network is mainnet 8788", () => {
     },
     () => {
       const cfg = loadConfig();
-      assert.equal(cfg.network, "mainnet");
-      assert.equal(cfg.apiUrl, MAINNET_API_BASE_URL);
-      assert.equal(cfg.chainId, 4663);
-    }
-  );
-});
-
-test("MCP AUREON_NETWORK=testnet uses public host", () => {
-  withEnv(
-    {
-      AUREON_API_KEY: "test-key",
-      AUREON_API_URL: undefined,
-      AUREON_NETWORK: "testnet",
-      AUREON_AUTH_TOKEN: undefined,
-    },
-    () => {
-      const cfg = loadConfig();
       assert.equal(cfg.network, "testnet");
-      assert.equal(cfg.apiUrl, TESTNET_API_BASE_URL);
+      assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
       assert.equal(cfg.chainId, 46630);
     }
   );
 });
 
-test("MCP AUREON_API_URL still overrides when it matches", () => {
+test("MCP AUREON_NETWORK=mainnet keeps the official API", () => {
   withEnv(
     {
       AUREON_API_KEY: "test-key",
-      AUREON_NETWORK: "testnet",
-      AUREON_API_URL: TESTNET_API_BASE_URL,
+      AUREON_API_URL: undefined,
+      AUREON_NETWORK: "mainnet",
       AUREON_AUTH_TOKEN: undefined,
     },
     () => {
       const cfg = loadConfig();
-      assert.equal(cfg.apiUrl, TESTNET_API_BASE_URL);
-      assert.equal(cfg.network, "testnet");
+      assert.equal(cfg.network, "mainnet");
+      assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
+      assert.equal(cfg.chainId, 4663);
     }
   );
 });
 
-test("MCP mismatch AUREON_NETWORK=mainnet + public URL throws", () => {
+test("MCP official URL is allowed with either network", () => {
   withEnv(
     {
       AUREON_API_KEY: "test-key",
       AUREON_NETWORK: "mainnet",
-      AUREON_API_URL: TESTNET_API_BASE_URL,
+      AUREON_API_URL: OFFICIAL_API_BASE_URL,
       AUREON_AUTH_TOKEN: undefined,
     },
     () => {
-      assert.throws(() => loadConfig(), /does not match network/);
+      const cfg = loadConfig();
+      assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
+      assert.equal(cfg.network, "mainnet");
     }
   );
 });
