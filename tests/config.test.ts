@@ -29,12 +29,29 @@ function withEnv(
   }
 }
 
-test("MCP default is the official API / testnet 46630", () => {
+test("MCP default is the official API / mainnet", () => {
   withEnv(
     {
       AUREON_API_KEY: "test-key",
       AUREON_API_URL: undefined,
       AUREON_NETWORK: undefined,
+      AUREON_AUTH_TOKEN: undefined,
+    },
+    () => {
+      const cfg = loadConfig();
+      assert.equal(cfg.network, "mainnet");
+      assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
+      assert.equal(cfg.chainId, 4663);
+    }
+  );
+});
+
+test("MCP AUREON_NETWORK=testnet keeps the official API", () => {
+  withEnv(
+    {
+      AUREON_API_KEY: "test-key",
+      AUREON_API_URL: undefined,
+      AUREON_NETWORK: "testnet",
       AUREON_AUTH_TOKEN: undefined,
     },
     () => {
