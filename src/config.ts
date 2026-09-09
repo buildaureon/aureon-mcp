@@ -5,8 +5,8 @@
  * That key identifies the bound wallet for control-plane tools — no Bearer required.
  * `AUREON_AUTH_TOKEN` is optional (utility-style session, or when using env bootstrap keys).
  *
- * Default API is https://api.aureonlabs.network. Optional `AUREON_NETWORK`
- * selects chain (`testnet` 46630 by default, or `mainnet` 4663).
+ * Default API is https://api.aureonlabs.network on mainnet.
+ * Pass `AUREON_NETWORK=testnet` to stay on testnet on the same host.
  * `AUREON_API_URL` overrides the official host when set.
  */
 
