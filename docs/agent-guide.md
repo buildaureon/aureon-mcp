@@ -4,7 +4,7 @@ Playbooks for AI agents using `@buildaureon/mcp` against the **live** AUREON API
 
 This guide teaches agents how to think, which tools to call, and how to talk honestly about settlement. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
 
-**Surface:** 54 tools · issued API key · optional Bearer · private key only outside MCP for broadcast.
+**Surface:** 54 tools · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for open tools; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast.
 
 ---
 
@@ -95,7 +95,7 @@ After `aureon_restore_objective` or `aureon_run_execution`, inspect the returned
 | `verifiedOnChain: false` + `settlement: "vault"` | Vault path but **not yet** independently observed — do not claim chain proof |
 | `settlement: "staged"` | Capital-book update only — **not** on-chain settlement |
 | `explorerUrl` | Link to block explorer when vault tx exists |
-| `registryRef` | Objective registered on testnet registry — cite `objectiveKey` + contract |
+| `registryRef` | Objective registered on the chain you called — cite `objectiveKey` + contract |
 | `status` | `confirmed` / `failed` / etc. — do not infer success from prepare alone |
 
 Cross-check with `aureon_list_timeline`: find events where `payload.executionId` matches `receipt.id` and confirm `payload.settlement` matches the receipt.
@@ -486,7 +486,7 @@ Manual mode remains available for humans who want Approve gates. If the operator
 | Update rejects symbol / mode | Immutable create fields | Explain lock; offer recreate + pause old. |
 | Restore flaps / healthy immediately | Marks shifted or race | Re-read health + vault; avoid spam restores. |
 | Prepare succeeds, balances unchanged | Broadcast never happened | Remind: unsigned steps need host signature. |
-| Invite / early-access errors on verify | Wallet not invited | Use issued key path or complete invite on first Bearer login. |
+| `aureon_verify_wallet` asks for `inviteCode` | Optional Bearer path only | Skip verify. Use hosted MCP or stdio with an issued `AUREON_API_KEY`. |
 | Ambiguous settlement | Receipt missing or staged | Report exactly what the receipt says. |
 
 ### Retry discipline
@@ -534,7 +534,7 @@ In the **@buildaureon/sdk documentation** (client API, data contracts, error mod
 
 ### What URL should agents use?
 
-Omit `AUREON_API_URL` for the official API `https://api.aureonlabs.network` (currently chain 46630). Set `AUREON_NETWORK=mainnet` for chain 4663 on the same host.
+Omit `AUREON_API_URL` for the official API `https://api.aureonlabs.network` on mainnet. Set `AUREON_NETWORK=testnet` to stay on testnet on the same host.
 
 ### What if the operator asks me to “just send the transaction”?
 
@@ -599,7 +599,7 @@ Agents should be decisive about what they can do alone with an issued key:
 - [Tools](./tools.md) — purpose, args, when to use, caveats per tool  
 - [Auth](./auth.md) — issued key, optional Bearer, private-key boundary  
 - [Setup](./setup.md) — wiring Cursor / Claude Desktop to the live API  
-- [Security](./security.md) — stdio trust model and key hygiene  
+- [Security](./security.md) — hosted vs stdio trust model and key hygiene  
 - **@buildaureon/sdk documentation** — deeper contracts for builders  
 
 ---
