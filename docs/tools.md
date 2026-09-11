@@ -8,7 +8,9 @@ For request/response shapes, error codes, and HTTP contracts, see the **@buildau
 
 **Tool count:** 54.
 
-**API:** default official API `https://api.aureonlabs.network` (testnet 46630). Optional `AUREON_NETWORK=mainnet` selects chain 4663 on the same host.
+**API:** default official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host.
+
+**Hosted URL:** `aureon_ping`, `aureon_list_market_presets`, and `aureon_validate_receipt` work without a user key. Every other tool needs `X-Aureon-Api-Key` (your issued Developers key) or stdio `AUREON_API_KEY`.
 
 ---
 
@@ -20,19 +22,19 @@ These conventions apply to every tool below.
 | --- | --- |
 | Issued API key | Set `AUREON_API_KEY` to an issued Developers key. That key is product access **and** wallet identity for control-plane calls. |
 | Optional Bearer | You may also supply a wallet Bearer (`AUREON_AUTH_TOKEN` or `aureon_verify_wallet`). If both key and Bearer are present, Bearer wins. |
-| Default network | Official API / testnet 46630. Optional `AUREON_NETWORK=mainnet` for chain 4663. |
+| Default network | Official API / mainnet. Optional `AUREON_NETWORK=testnet` to stay on testnet. |
 | Private key outside MCP | Deposit and withdraw **prepare** tools return unsigned steps. Signing and broadcast happen in the host wallet — never inside the MCP process. |
 | Default automation | `aureon_create_objective` defaults `automationMode` to `"auto"`. |
 | Locked at create | `targetSymbol` and `automationMode` are immutable after create. Recreate the objective to change them. |
 | Unsigned prepare | `aureon_prepare_vault_deposit` and `aureon_prepare_vault_withdraw` never broadcast. |
 | Settlement honesty | Restore / execution receipts may show `settlement: "vault"` (on-chain) or `"staged"` (ledger-local). Label them honestly. |
 
-The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it fails by design — agents should use an issued key (or optional Bearer) instead. The public host is still testnet 46630, not 4663.
+The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it fails by design — agents should use an issued key (or optional Bearer) instead. Public Living Capital is still the testnet console.
 
 ### Auth bootstrap (agents)
 
 1. Create an issued key in the operator utility **Developers** console.
-2. Configure the MCP host with `AUREON_API_KEY`. Omit `AUREON_API_URL` to use the official API. Set `AUREON_NETWORK=mainnet` only for chain 4663.
+2. Configure the MCP host with `AUREON_API_KEY`. Omit `AUREON_API_URL` to use the official API (mainnet). Set `AUREON_NETWORK=testnet` only to stay on testnet.
 3. Call tools. Day-to-day agent work does **not** require a wallet handshake.
 
 Optional wallet path: `aureon_get_auth_nonce` → host signs → `aureon_verify_wallet`. Prefer issued keys for always-on agents.
@@ -85,7 +87,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **When to use:** Optional wallet handshake only. Issued API keys usually skip this path.
 
-**Caveats:** The message must be signed by the matching wallet. Early-access wallets may still need an invite on verify.
+**Caveats:** The message must be signed by the matching wallet. `inviteCode` is only if the API asks for it on this optional Bearer path. Hosted MCP and issued-key stdio do not use this tool.
 
 ### `aureon_verify_wallet`
 
@@ -748,7 +750,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - [Agent guide](./agent-guide.md) — read → decide → act playbooks
 - [Auth](./auth.md) — issued key, optional Bearer, private-key boundary
 - [Setup](./setup.md) — host configuration for Cursor / Claude Desktop
-- [Security](./security.md) — stdio trust boundary and key hygiene
+- [Security](./security.md) — hosted HTTP and stdio trust boundary and key hygiene
 - **@buildaureon/sdk documentation** — typed client methods, data contracts, error model
 
 ---
