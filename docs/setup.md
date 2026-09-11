@@ -1,8 +1,17 @@
 # Setup Guide
 
-Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.9` against the live AUREON API.
+Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.10` against the live AUREON API.
 
-This package is a **stdio** [Model Context Protocol](https://modelcontextprotocol.io) server. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **54 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
+This package is the official [Model Context Protocol](https://modelcontextprotocol.io) adapter for AUREON. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **54 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
+
+There are two supported transports:
+
+| Transport | Endpoint / command | Auth in the host |
+| --- | --- | --- |
+| **Hosted HTTP** | `https://mcp.aureonlabs.network/mcp` | None required to connect. Optional `X-Aureon-Api-Key` for your wallet tools. |
+| **Local stdio** | `npx -y @buildaureon/mcp` | Your issued `AUREON_API_KEY` in the host `env` block |
+
+Both surfaces are the same 54 tools. Neither signs or broadcasts. Confirm hosted health at [https://mcp.aureonlabs.network/healthz](https://mcp.aureonlabs.network/healthz).
 
 Related docs: [Authentication](./auth.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -10,10 +19,11 @@ Related docs: [Authentication](./auth.md) · [Tools](./tools.md) · [Agent guide
 
 ## What this guide covers
 
+- Hosted URL vs local stdio — which to pick
 - What you need before connecting an agent
-- Environment variables the MCP process reads
-- How to create an issued developer API key
-- Cursor and Claude Desktop config (published package first)
+- Environment variables the **stdio** process reads
+- How to create an issued developer API key (required for stdio; not pasted into Cursor for hosted)
+- Cursor and Claude Desktop config (hosted URL first, then published package)
 - Running via `npx` without a permanent install
 - Building from a source clone (optional)
 - Smoke prompts to verify the wire is live
@@ -28,9 +38,9 @@ If you only want auth semantics (key vs Bearer vs private key), skip ahead to [.
 | Requirement | Notes |
 | --- | --- |
 | **Node.js 20+** | ESM runtime. Check with `node -v`. |
-| **Issued developer API key** | Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Plaintext is shown once. |
-| **Network access** | Default is the official API `https://api.aureonlabs.network` (currently chain 46630). Optional `AUREON_NETWORK=mainnet` selects chain 4663 on the same host. |
-| **MCP host** | Cursor, Claude Desktop, or any client that can launch a stdio MCP server. |
+| **Issued developer API key** | Required for **stdio**. Issue it at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Not pasted into Cursor when you use the hosted URL. |
+| **Network access** | Default is the official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host. Public Living Capital is still the testnet console. |
+| **MCP host** | Cursor, Claude Desktop, or any client that can attach to Streamable HTTP **or** spawn a stdio MCP server. |
 
 You do **not** need a wallet Bearer token for day-to-day control-plane tools when you use an issued key.
 
@@ -45,11 +55,11 @@ The MCP server never custodies funds and never signs chain transactions.
 | Item | Value |
 | --- | --- |
 | npm package | `@buildaureon/mcp` |
-| Version | `0.1.9` |
+| Version | `0.1.10` |
 | Depends on | `@buildaureon/sdk` |
-| Transport | stdio MCP (JSON-RPC over stdin/stdout) |
+| Transports | Hosted Streamable HTTP at `https://mcp.aureonlabs.network/mcp`, or local stdio (`npx -y @buildaureon/mcp`) |
 | Tool count | 54 |
-| Default API | `https://api.aureonlabs.network` (testnet 46630). `AUREON_NETWORK=mainnet` selects chain 4663. |
+| Default API | `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet. |
 | Console | [app.aureonlabs.network](https://app.aureonlabs.network) |
 
 Primary launch command (recommended for hosts):
@@ -68,12 +78,12 @@ The process reads these at startup. Put them in your MCP host `env` block (Curso
 | --- | --- | --- | --- |
 | `AUREON_API_KEY` | **Preferred** | — | Issued developer key (`aureon_…`). Product access **and** wallet identity for control-plane tools. |
 | `AUREON_AUTH_TOKEN` | Optional | — | Wallet Bearer session. Wins over key identity when both are present on a request. |
-| `AUREON_NETWORK` | Optional | `testnet` | Omit for official API / 46630. Set `mainnet` for chain 4663. |
+| `AUREON_NETWORK` | Optional | `mainnet` | Omit for official API / mainnet. Set `testnet` to stay on testnet. |
 | `AUREON_API_URL` | Optional | `https://api.aureonlabs.network` | Override the official host only if you must. |
 
 At least one of `AUREON_API_KEY` or `AUREON_AUTH_TOKEN` must be set or the server refuses to start.
 
-**Recommendation:** set only `AUREON_API_KEY`. The process uses the official API. Add `AUREON_NETWORK=mainnet` only if you want chain 4663 on that host.
+**Recommendation:** set only `AUREON_API_KEY`. The process uses the official API on mainnet. Add `AUREON_NETWORK=testnet` only to stay on testnet on that host.
 
 Never put a wallet private key in MCP env. Prepare tools return unsigned calldata; the host wallet signs elsewhere.
 
@@ -82,7 +92,7 @@ Never put a wallet private key in MCP env. Prepare tools return unsigned calldat
 ## Create an issued developer API key
 
 1. Open [https://app.aureonlabs.network](https://app.aureonlabs.network).
-2. Complete invite / early-access flow if prompted, then connect your wallet.
+2. Connect your wallet.
 3. Open **Developers**.
 4. Create a key with a clear label (for example `cursor-mcp` or `claude-desktop`).
 5. Copy the secret immediately — plaintext is shown once.
@@ -95,7 +105,44 @@ That key binds control-plane calls to your wallet. You do not need a separate Be
 
 ## Cursor configuration
 
-### Option A — published package (recommended)
+### Option A — official hosted URL (recommended first use)
+
+No Node process. A user key is not required to connect. Merge [`../examples/cursor.hosted.mcp.json`](../examples/cursor.hosted.mcp.json):
+
+```json
+{
+  "mcpServers": {
+    "aureon": {
+      "url": "https://mcp.aureonlabs.network/mcp"
+    }
+  }
+}
+```
+
+Restart Cursor. Confirm **aureon** appears under MCP / tools. Ask: *“Use aureon_ping.”*
+
+Open tools without a key: `aureon_ping`, `aureon_list_market_presets`, `aureon_validate_receipt`.
+
+For **your** wallet (`aureon_me`, portfolio, objectives, restore, vault prepare), add the header. Template: [`../examples/cursor.hosted.user.mcp.json`](../examples/cursor.hosted.user.mcp.json).
+
+```json
+{
+  "mcpServers": {
+    "aureon": {
+      "url": "https://mcp.aureonlabs.network/mcp",
+      "headers": {
+        "X-Aureon-Api-Key": "aureon_...."
+      }
+    }
+  }
+}
+```
+
+Health check: [https://mcp.aureonlabs.network/healthz](https://mcp.aureonlabs.network/healthz) must report `ok: true` and `tools: 54`.
+
+Use Option B when you want the key in host env instead of an HTTP header.
+
+### Option B — published stdio package (your issued key)
 
 Create or edit `.cursor/mcp.json` in the project, or merge into your user MCP config:
 
@@ -117,9 +164,9 @@ Restart Cursor (or reload MCP servers). Confirm **aureon** appears under MCP / t
 
 Ask a smoke prompt such as: *“Use aureon_ping, then aureon_me.”*
 
-Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. The official API is used when `AUREON_API_URL` is omitted. Add `"AUREON_NETWORK": "mainnet"` only to select chain 4663.
+Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Public Living Capital is still the testnet console. The official API is used when `AUREON_API_URL` is omitted (mainnet). Add `"AUREON_NETWORK": "testnet"` only to stay on testnet.
 
-### Option B — from a local build
+### Option C — from a local build
 
 Use this only when you are iterating on a clone of the package. Replace the working directory with your own clone path.
 
@@ -140,13 +187,25 @@ Use this only when you are iterating on a clone of the package. Replace the work
 
 Build first (`pnpm build` or `npm run build` inside the MCP package) so `dist/index.js` exists.
 
-Prefer Option A for everyday agent use. Local `cwd` configs are for contributors and package development.
+Prefer Option A for everyday agent use. Option B when you need your own key. Option C (`cwd`) is for contributors and package development.
 
 ---
 
 ## Claude Desktop configuration
 
-Merge the same shape into Claude Desktop’s MCP config file (location depends on your OS; Claude’s docs describe where `claude_desktop_config.json` lives).
+If the host supports a remote MCP URL, use the same hosted endpoint as Cursor:
+
+```json
+{
+  "mcpServers": {
+    "aureon": {
+      "url": "https://mcp.aureonlabs.network/mcp"
+    }
+  }
+}
+```
+
+Otherwise merge the stdio shape into Claude Desktop’s MCP config file (location depends on your OS; Claude’s docs describe where `claude_desktop_config.json` lives).
 
 ```json
 {
@@ -164,9 +223,9 @@ Merge the same shape into Claude Desktop’s MCP config file (location depends o
 
 Restart Claude Desktop after saving. In a new chat, ask the model to list AUREON tools or call `aureon_ping`.
 
-For a from-source Claude entry, use `node` + `dist/index.js` with `"cwd": "/path/to/your/clone/mcp"` the same way as Cursor Option B.
+For a from-source Claude entry, use `node` + `dist/index.js` with `"cwd": "/path/to/your/clone/mcp"` the same way as Cursor Option C.
 
-Example templates also ship in the package under `examples/cursor.mcp.json` and `examples/claude-desktop.json`.
+Example templates: [`examples/cursor.hosted.mcp.json`](../examples/cursor.hosted.mcp.json), [`examples/cursor.mcp.json`](../examples/cursor.mcp.json), [`examples/claude-desktop.json`](../examples/claude-desktop.json).
 
 ---
 
@@ -177,7 +236,7 @@ From a terminal, with the key in the environment:
 ```bash
 export AUREON_API_KEY=aureon_....
 # omit AUREON_API_URL for official API https://api.aureonlabs.network
-# export AUREON_NETWORK=mainnet   # chain 4663 on the same official host
+# export AUREON_NETWORK=testnet   # stay on testnet on the same official host
 
 npx -y @buildaureon/mcp
 ```
@@ -187,7 +246,7 @@ On Windows PowerShell:
 ```powershell
 $env:AUREON_API_KEY = "aureon_...."
 # omit AUREON_API_URL for official API https://api.aureonlabs.network
-# $env:AUREON_NETWORK = "mainnet"   # chain 4663 on the same official host
+# $env:AUREON_NETWORK = "testnet"   # stay on testnet on the same official host
 npx -y @buildaureon/mcp
 ```
 
@@ -259,7 +318,7 @@ For write workflows (create objective, restore, prepare vault), see [./agent-gui
 
 ## Verify the tool surface
 
-A healthy install exposes auth, read, objective, portfolio, execution, market, vault prepare, and developer key tools — **47** in total.
+A healthy install exposes auth, read, objective, portfolio, execution, market, vault prepare, and developer key tools — **54** in total.
 
 You do not need every tool on day one. Start with:
 
@@ -281,7 +340,7 @@ Vault **prepare** tools return unsigned steps only. Signing and broadcasting sta
 | Startup error about missing credentials | Neither key nor Bearer set | Set `AUREON_API_KEY` in the host `env` block |
 | `401` / unauthorized on tools | Bad, paused, or revoked key | Create a new issued key; update config |
 | `npx` hangs or fails | Network / registry issue | Retry; ensure Node 20+; try `npm view @buildaureon/mcp version` |
-| Tools listed but every call fails | Wrong URL / mixed network | Omit `AUREON_API_URL` for the official API, or set `AUREON_NETWORK=mainnet` for chain 4663 |
+| Tools listed but every call fails | Wrong URL / mixed network | Omit `AUREON_API_URL` for the official API, or set `AUREON_NETWORK=testnet` to stay on testnet |
 | `aureon_me` shows unexpected wallet | Bearer also set and winning | Clear `AUREON_AUTH_TOKEN` / logout; prefer key-only — see [./auth.md](./auth.md) |
 | Local `node dist/index.js` fails | Missing build | Run `pnpm build` so `dist/index.js` exists |
 | Deposit / withdraw “not signed” | Expected | MCP returns unsigned steps; sign outside MCP |
@@ -295,7 +354,7 @@ Still stuck? Confirm HTTPS reachability to the API, then re-check that the key s
 
 ### Do I need to install the package globally?
 
-No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.9` (or newer) is fetched on demand.
+No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.10` (or newer) is fetched on demand.
 
 ### Is a Bearer token required?
 
@@ -307,11 +366,11 @@ No. Keep private keys out of MCP. Use them only in a separate signing host when 
 
 ### Does MCP talk to a local backend?
 
-Default (omit `AUREON_API_URL`) is the official API `https://api.aureonlabs.network` (currently chain 46630). Set `AUREON_NETWORK=mainnet` to select chain 4663 on that same host.
+Default (omit `AUREON_API_URL`) is the official API `https://api.aureonlabs.network` on mainnet. Set `AUREON_NETWORK=testnet` to stay on testnet on that same host.
 
 ### How is this different from `@buildaureon/sdk`?
 
-The SDK is for typed TypeScript programs. MCP is the same surface as **named tools** for AI hosts over stdio. Both authenticate the same way against the live API.
+The SDK is for typed TypeScript programs. MCP is the same surface as **named tools** for AI hosts. Hosted HTTP and local stdio expose the same 54 tools. Both call the live API. Stdio authenticates with your issued key in host env. Hosted is URL-only for open tools; add `X-Aureon-Api-Key` for your wallet.
 
 ### Where do I rotate a leaked key?
 
@@ -327,9 +386,9 @@ Node.js **20 or newer**. Older runtimes are unsupported.
 
 - [ ] Node 20+ installed (`node -v`)
 - [ ] Issued key created on the Developers page
-- [ ] Host config uses `npx -y @buildaureon/mcp` (or local `node dist/index.js` with a placeholder cwd)
-- [ ] `AUREON_API_KEY` set in host `env` (no private key)
-- [ ] `AUREON_API_URL` omitted (official API). Optional `AUREON_NETWORK=mainnet` for chain 4663
+- [ ] Host config uses `https://mcp.aureonlabs.network/mcp` **or** `npx -y @buildaureon/mcp`
+- [ ] If stdio: `AUREON_API_KEY` set in host `env` (no private key)
+- [ ] If stdio: `AUREON_API_URL` omitted (official API / mainnet). Optional `AUREON_NETWORK=testnet` to stay on testnet
 - [ ] Host restarted; aureon server shows connected
 - [ ] `aureon_ping` succeeds
 - [ ] `aureon_me` returns the expected wallet
