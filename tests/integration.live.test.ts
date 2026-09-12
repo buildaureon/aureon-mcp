@@ -7,7 +7,7 @@
  *   AUREON_AUTH_TOKEN=Bearer…
  *   AUREON_WALLET_PRIVATE_KEY=0x…         (signs nonce → Bearer for the suite)
  *
- * Optional: AUREON_NETWORK (omit = official API / testnet 46630; mainnet = chain 4663)
+ * Optional: AUREON_NETWORK (omit = official API / mainnet; testnet = stay on testnet)
  * Optional: AUREON_API_URL (overrides; must match network if both set)
  * Optional: AUREON_E2E_INVITE_CODE
  *
