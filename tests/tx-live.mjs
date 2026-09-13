@@ -1,9 +1,9 @@
-﻿/**
+/**
  * Live MCP transaction tool smoke against the hosted API.
  *
  * Env:
  *   AUREON_API_KEY   required (issued developer key preferred)
- *   AUREON_NETWORK   optional; omit for official API / testnet 46630; mainnet = chain 4663
+ *   AUREON_NETWORK   optional; omit for official API / mainnet; testnet = stay on testnet
  *   AUREON_API_URL   optional override
  *   AUREON_AUTH_TOKEN optional Bearer
  *
