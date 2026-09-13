@@ -5,8 +5,8 @@
  * Usage:
  *   AUREON_API_KEY=… tsx tests/verify-agent.ts
  *
- * Default API is https://api.aureonlabs.network (testnet 46630).
- * Set AUREON_NETWORK=mainnet for chain 4663 on the same official host.
+ * Default API is https://api.aureonlabs.network on mainnet.
+ * Set AUREON_NETWORK=testnet to stay on testnet on the same official host.
  * Optional AUREON_AUTH_TOKEN. Credentials come from the environment only.
  */
 import { spawnSync } from "node:child_process";
