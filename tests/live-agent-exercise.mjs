@@ -1,6 +1,6 @@
 /**
  * Live agent exercise — MCP tools against the resolved AUREON API
- * (default official API / testnet 46630; AUREON_NETWORK=mainnet for chain 4663).
+ * (default official API / mainnet; AUREON_NETWORK=testnet to stay on testnet).
  * Creates objective, syncs portfolio, prepares vault deposit, optionally broadcasts.
  *
  * Required env:
