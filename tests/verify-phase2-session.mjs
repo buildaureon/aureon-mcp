@@ -7,7 +7,7 @@
  *
  *   AUREON_API_KEY              issued developer key
  *   AUREON_WALLET_PRIVATE_KEY   0x… signing key
- *   AUREON_NETWORK              optional; omit = testnet 46630; mainnet = chain 4663
+ *   AUREON_NETWORK              optional; omit = mainnet; testnet = stay on testnet
  *   AUREON_API_URL              optional override of the official host
  *
  *   AUREON_API_KEY=… AUREON_WALLET_PRIVATE_KEY=… pnpm --filter @buildaureon/mcp test:phase2
