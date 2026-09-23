@@ -183,17 +183,24 @@ Do not say the objective is on chain until confirm returns a record.
 
 Practical close script (host signs outside MCP): `pnpm --filter @buildaureon/mcp test:phase2` against a Phase 2 API.
 
-### C. Restore drift
+### C. Living Capital maintain (restore drift)
+
+Same product loop as the SDK: watch → plan → maintain → prove. Do not name or invent venue details — the API owns routing.
 
 ```text
 aureon_refresh_watchdog
 aureon_get_health
-aureon_get_restore_plan      # when breached — explain steps
-aureon_restore_objective
+aureon_get_allocation_vs_target
+aureon_get_restore_plan      # when breached — explain wrap / unwrap / vault_swap in plain words
+aureon_restore_objective     # or aureon_run_execution
+aureon_get_execution_settlement
+aureon_validate_receipt      # when proving a claim
 aureon_list_timeline
 aureon_list_executions
 aureon_get_health            # post-check
 ```
+
+Empty vault → restore **409**. Return unsigned `aureon_prepare_vault_deposit` steps. Never broadcast deposits from MCP.
 
 **Agent summary checklist**
 
