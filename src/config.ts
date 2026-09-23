@@ -32,6 +32,7 @@ export function loadConfig(): McpConfig {
     throw new Error(
       "Set AUREON_API_KEY (issued developer key) " +
         "or AUREON_AUTH_TOKEN (wallet Bearer). " +
+        "Get a Developers key from the utility at https://app.aureonlabs.network. " +
         "Default API is https://api.aureonlabs.network. " +
         "See https://github.com/buildaureon/aureon-mcp#authentication"
     );
