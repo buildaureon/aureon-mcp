@@ -12,7 +12,7 @@ Exposes the full `@buildaureon/sdk` surface as tools for Cursor, Claude Desktop,
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-0b0e0d?style=flat-square)](https://modelcontextprotocol.io)
 [![Hosted](https://img.shields.io/badge/hosted-mcp.aureonlabs.network-a8e00d?style=flat-square)](https://mcp.aureonlabs.network/mcp)
-[![Version](https://img.shields.io/badge/version-0.1.10-a8e00d?style=flat-square)](https://github.com/buildaureon)
+[![Version](https://img.shields.io/badge/version-0.1.11-a8e00d?style=flat-square)](https://github.com/buildaureon)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0b0e0d?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square&logo=nodejs&logoColor=white)](#requirements--installation)
 
@@ -365,8 +365,8 @@ flowchart TD
 3. If the vault is empty: `aureon_restore_objective` returns **409**. Call `aureon_prepare_vault_deposit`, return unsigned steps, and wait for the user or host wallet to broadcast. Agents do not fund the vault.
 4. `aureon_create_objective` (`auto`) (Register continuous financial objective)
 5. `aureon_refresh_watchdog` / `aureon_get_health` (Check health score and drift)
-6. On violation after the vault is funded → `aureon_get_restore_plan` → `aureon_restore_objective`
-7. Confirm with `aureon_list_timeline` (Verify settlement receipts)
+6. On violation after the vault is funded → `aureon_get_restore_plan` → `aureon_restore_objective` (maintain: sell overweight → buy underweight inside the vault)
+7. Prove with `aureon_get_execution_settlement` / `aureon_validate_receipt`, then `aureon_list_timeline`
 
 ### 2. Vault Deposit Path (API Key + External Signer)
 
