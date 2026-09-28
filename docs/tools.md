@@ -29,7 +29,7 @@ These conventions apply to every tool below.
 | Unsigned prepare | `aureon_prepare_vault_deposit` and `aureon_prepare_vault_withdraw` never broadcast. |
 | Settlement honesty | Restore / execution receipts may show `settlement: "vault"` (on-chain) or `"staged"` (ledger-local). Label them honestly. |
 
-The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it fails by design — agents should use an issued key (or optional Bearer) instead. Public Living Capital is still the testnet console.
+The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it fails by design — agents should use an issued key (or optional Bearer) instead. Keys are issued at the mainnet console, [app.aureonlabs.network](https://app.aureonlabs.network).
 
 ### Auth bootstrap (agents)
 
