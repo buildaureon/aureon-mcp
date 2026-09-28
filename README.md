@@ -12,7 +12,7 @@ Exposes the full `@buildaureon/sdk` surface as tools for Cursor, Claude Desktop,
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-0b0e0d?style=flat-square)](https://modelcontextprotocol.io)
 [![Hosted](https://img.shields.io/badge/hosted-mcp.aureonlabs.network-a8e00d?style=flat-square)](https://mcp.aureonlabs.network/mcp)
-[![Version](https://img.shields.io/badge/version-0.1.11-a8e00d?style=flat-square)](https://github.com/buildaureon)
+[![Version](https://img.shields.io/badge/version-0.1.13-a8e00d?style=flat-square)](https://github.com/buildaureon)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0b0e0d?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square&logo=nodejs&logoColor=white)](#requirements--installation)
 
@@ -79,7 +79,7 @@ The npm package is the stdio server. The official hosted process is Streamable H
 
 **54 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
 
-For scripts without MCP, use [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk). The operator app at [app.aureonlabs.network](https://app.aureonlabs.network) stays wallet-Bearer only. Public Living Capital is still the testnet console. SDK and MCP default to mainnet.
+For scripts without MCP, use [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk). The operator app at [app.aureonlabs.network](https://app.aureonlabs.network) is the mainnet console and stays wallet-Bearer only. SDK and MCP default to mainnet.
 
 ---
 
@@ -158,7 +158,7 @@ Traditional AI trading scripts execute isolated market orders without context, f
 ### Requirements
 
 - **Node.js**: 20 or higher (ESM compatible)
-- **Developer API Key**: Issued at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Public Living Capital is still the testnet console. SDK and MCP default to mainnet.
+- **Developer API Key**: Issued at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. That app is the mainnet console. SDK and MCP default to mainnet.
 - **Network Access**: Default official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host.
 
 ### Installation
@@ -440,7 +440,7 @@ pnpm --filter @buildaureon/mcp typecheck
 | **[Agent Playbooks](docs/agent-guide.md)** | End-to-end agent decision playbooks, turn templates, and anti-patterns |
 | **[Architecture Deep Dive](docs/architecture.md)** | Module boundaries, file maps, and end-to-end request data flows |
 | **[Security Model](docs/security.md)** | Credential management, threat modeling, and operational safety |
-| **[Changelog](CHANGELOG.md)** | Published versions, including 0.1.10 mainnet default and hosted URL docs |
+| **[Changelog](CHANGELOG.md)** | Published versions, including 0.1.13 mainnet console docs |
 | **[`examples/cursor.hosted.mcp.json`](examples/cursor.hosted.mcp.json)** | Cursor config for URL-only hosted MCP |
 | **[`examples/cursor.hosted.user.mcp.json`](examples/cursor.hosted.user.mcp.json)** | Same URL plus `X-Aureon-Api-Key` for your wallet tools |
 | **[`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk)** | Core TypeScript SDK documentation, types, and error definitions |
