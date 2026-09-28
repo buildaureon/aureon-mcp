@@ -2,7 +2,7 @@
 
 How `@buildaureon/mcp` sits on top of `@buildaureon/sdk` and the hosted AUREON API.
 
-This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the official adapter: a thin MCP server that forwards tool calls to the SDK. Two transports share that adapter — **local stdio** (`@buildaureon/mcp`) and **official hosted Streamable HTTP** (`https://mcp.aureonlabs.network/mcp`). Default API is `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet on the same official host. Public Living Capital is still the testnet console.
+This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the official adapter: a thin MCP server that forwards tool calls to the SDK. Two transports share that adapter — **local stdio** (`@buildaureon/mcp`) and **official hosted Streamable HTTP** (`https://mcp.aureonlabs.network/mcp`). Default API is `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet on the same official host. The operator app is the mainnet console.
 
 ---
 
