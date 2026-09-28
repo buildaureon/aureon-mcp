@@ -1,6 +1,6 @@
 # Setup Guide
 
-Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.10` against the live AUREON API.
+Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.13` against the live AUREON API.
 
 This package is the official [Model Context Protocol](https://modelcontextprotocol.io) adapter for AUREON. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **54 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
 
@@ -39,7 +39,7 @@ If you only want auth semantics (key vs Bearer vs private key), skip ahead to [.
 | --- | --- |
 | **Node.js 20+** | ESM runtime. Check with `node -v`. |
 | **Issued developer API key** | Required for **stdio**. Issue it at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Not pasted into Cursor when you use the hosted URL. |
-| **Network access** | Default is the official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host. Public Living Capital is still the testnet console. |
+| **Network access** | Default is the official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host. The operator app is the mainnet console. |
 | **MCP host** | Cursor, Claude Desktop, or any client that can attach to Streamable HTTP **or** spawn a stdio MCP server. |
 
 You do **not** need a wallet Bearer token for day-to-day control-plane tools when you use an issued key.
@@ -55,7 +55,7 @@ The MCP server never custodies funds and never signs chain transactions.
 | Item | Value |
 | --- | --- |
 | npm package | `@buildaureon/mcp` |
-| Version | `0.1.10` |
+| Version | `0.1.13` |
 | Depends on | `@buildaureon/sdk` |
 | Transports | Hosted Streamable HTTP at `https://mcp.aureonlabs.network/mcp`, or local stdio (`npx -y @buildaureon/mcp`) |
 | Tool count | 54 |
@@ -164,7 +164,7 @@ Restart Cursor (or reload MCP servers). Confirm **aureon** appears under MCP / t
 
 Ask a smoke prompt such as: *“Use aureon_ping, then aureon_me.”*
 
-Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. Public Living Capital is still the testnet console. The official API is used when `AUREON_API_URL` is omitted (mainnet). Add `"AUREON_NETWORK": "testnet"` only to stay on testnet.
+Issue the key at [app.aureonlabs.network](https://app.aureonlabs.network) → **Developers**. That app is the mainnet console. The official API is used when `AUREON_API_URL` is omitted (mainnet). Add `"AUREON_NETWORK": "testnet"` only to stay on testnet.
 
 ### Option C — from a local build
 
@@ -354,7 +354,7 @@ Still stuck? Confirm HTTPS reachability to the API, then re-check that the key s
 
 ### Do I need to install the package globally?
 
-No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.10` (or newer) is fetched on demand.
+No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.13` is fetched on demand.
 
 ### Is a Bearer token required?
 
