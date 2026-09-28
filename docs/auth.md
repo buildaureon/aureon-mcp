@@ -1,6 +1,6 @@
 # Authentication Guide
 
-How **`@buildaureon/mcp`** `v0.1.10` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **54** tools over hosted HTTP or local stdio.
+How **`@buildaureon/mcp`** `v0.1.13` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **54** tools over hosted HTTP or local stdio.
 
 Related docs: [Setup](./setup.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -19,7 +19,7 @@ If you have not configured the host yet, start with [./setup.md](./setup.md), th
 
 ## Goals of MCP auth
 
-1. Reach the official API `https://api.aureonlabs.network` on mainnet. Stay on testnet with `AUREON_NETWORK=testnet`. Public Living Capital is still the testnet console.
+1. Reach the official API `https://api.aureonlabs.network` on mainnet. Stay on testnet with `AUREON_NETWORK=testnet`. The operator app is the mainnet console.
 2. Bind control-plane actions to a wallet identity (issued key or Bearer session).
 3. Keep signing and broadcasting of on-chain vault steps **outside** MCP.
 4. Prefer a long-lived issued key for always-on agents over interactive wallet handshakes.
@@ -228,7 +228,7 @@ Never paste a private key into MCP tool arguments or host env “for convenience
 | `401` Unauthorized | Key revoked/paused, Bearer expired, or typo | Rotate key or re-verify wallet |
 | Wrong wallet on `aureon_me` | Bearer winning over key | `aureon_logout`; remove env Bearer; restart |
 | `aureon_verify_wallet` fails | Bad signature, stale nonce, or missing invite | New nonce; re-sign; supply `inviteCode` if required |
-| `aureon_dev_login` fails on live API | Expected | Use an issued key. Public Living Capital is still the testnet console. |
+| `aureon_dev_login` fails on live API | Expected | Use an issued key from the mainnet console at [app.aureonlabs.network](https://app.aureonlabs.network). |
 | Prepare tools succeed but funds do not move | Unsigned steps not broadcast | Sign outside MCP with a real wallet |
 | Agent invents a local API URL | Misconfigured override | Omit `AUREON_API_URL` for the official API, or set `AUREON_NETWORK=testnet` |
 
@@ -334,7 +334,7 @@ Do not reuse the compromised secret “temporarily.” Treat rotation as mandato
 
 If a typed SDK script works with your issued key but MCP fails, compare env names (`AUREON_API_KEY` vs hard-coded client options) and confirm the host actually injects env into the stdio child process.
 
-Package version for this guide: **`@buildaureon/mcp` `v0.1.10`**.
+Package version for this guide: **`@buildaureon/mcp` `v0.1.13`**.
 
 ---
 
