@@ -54,6 +54,14 @@ export const SDK_TOOL_NAMES = [
   "aureon_confirm_execution_settlement",
   "aureon_validate_receipt",
   "aureon_get_audit_trail",
+  "aureon_list_decisions",
+  "aureon_get_decision",
+  "aureon_get_portfolio_history",
+  "aureon_get_health_history",
+  "aureon_prepare_report",
+  "aureon_confirm_report",
+  "aureon_list_reports",
+  "aureon_get_report",
 ] as const;
 
 export const TOOL_COUNT = SDK_TOOL_NAMES.length;
