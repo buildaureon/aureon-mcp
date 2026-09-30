@@ -17,6 +17,7 @@ import { registerRegistryTools } from "./registry.js";
 import { registerSettlementTools } from "./settlement.js";
 import { registerReceiptTools } from "./receipt.js";
 import { registerAuditTrailTools } from "./audit-trail.js";
+import { registerHistoryTools } from "./history.js";
 import { SDK_TOOL_NAMES, TOOL_COUNT } from "./catalog.js";
 
 export { SDK_TOOL_NAMES, TOOL_COUNT };
@@ -44,4 +45,5 @@ export function registerTools(
   registerSettlementTools(server, client);
   registerReceiptTools(server);
   registerAuditTrailTools(server, client);
+  registerHistoryTools(server, client);
 }
