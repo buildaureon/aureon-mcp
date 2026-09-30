@@ -37,6 +37,7 @@ export function registerObjectiveTools(server: McpServer, client: AureonClient) 
       automationMode: automationMode
         .optional()
         .describe("auto = keeper vault restore; manual = operator Approve (locked after create)"),
+      reason: z.string().optional().describe("Optional note stored on the decision record"),
     },
     async (input) => {
       try {
@@ -58,6 +59,7 @@ export function registerObjectiveTools(server: McpServer, client: AureonClient) 
       tolerance: z.number().optional(),
       maxRiskScore: z.number().optional(),
       reinvestRatio: z.number().optional(),
+      reason: z.string().optional().describe("Optional note stored on the decision record"),
     },
     async ({ objectiveId, ...input }) => {
       try {
@@ -71,10 +73,13 @@ export function registerObjectiveTools(server: McpServer, client: AureonClient) 
   server.tool(
     "aureon_pause_objective",
     "Pause continuous evaluation for an objective",
-    { objectiveId: z.string().describe("Objective ID") },
-    async ({ objectiveId }) => {
+    {
+      objectiveId: z.string().describe("Objective ID"),
+      reason: z.string().optional().describe("Optional note stored on the decision record"),
+    },
+    async ({ objectiveId, reason }) => {
       try {
-        return ok(await client.pauseObjective(objectiveId));
+        return ok(await client.pauseObjective(objectiveId, { reason }));
       } catch (err) {
         return fail(err);
       }
@@ -84,10 +89,13 @@ export function registerObjectiveTools(server: McpServer, client: AureonClient) 
   server.tool(
     "aureon_resume_objective",
     "Resume evaluation for a paused objective",
-    { objectiveId: z.string().describe("Objective ID") },
-    async ({ objectiveId }) => {
+    {
+      objectiveId: z.string().describe("Objective ID"),
+      reason: z.string().optional().describe("Optional note stored on the decision record"),
+    },
+    async ({ objectiveId, reason }) => {
       try {
-        return ok(await client.resumeObjective(objectiveId));
+        return ok(await client.resumeObjective(objectiveId, { reason }));
       } catch (err) {
         return fail(err);
       }
