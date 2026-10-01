@@ -6,7 +6,7 @@ import { fail, ok } from "./handler.js";
 export function registerRegistryTools(server: McpServer, client: AureonClient) {
   server.tool(
     "aureon_registry_status",
-    "Returns Phase 2 ObjectiveRegistry deployment status (testnet contract address when configured).",
+    "Returns ObjectiveRegistry deployment status (testnet contract address when configured).",
     {},
     async () => {
       try {
