@@ -6,7 +6,7 @@ Each tool maps to one public method on the `@buildaureon/sdk` client. Handlers v
 
 For request/response shapes, error codes, and HTTP contracts, see the **@buildaureon/sdk documentation**.
 
-**Tool count:** 54.
+**Tool count:** 62.
 
 **API:** default official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host.
 
@@ -764,4 +764,20 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - Prepare tools are safe to call with an API key; broadcasting is a separate host step.
 - When summarizing restores, always include settlement type when the receipt provides it.
 
-This reference is the canonical MCP tool surface for live agents: **54 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
+This reference is the canonical MCP tool surface for live agents: **62 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
+
+## Financial history
+
+These tools read or store rows the API already has. `aureon_prepare_report` and `aureon_confirm_report` sign a message with the wallet. They do not broadcast a transaction. `verified` is true only after that signature recovers to the session wallet.
+
+| Tool | Purpose |
+| --- | --- |
+| `aureon_list_timeline` | Newest events. Pass `before` and `limit` for the next page. |
+| `aureon_list_decisions` | Decision records for set, change, pause, and resume. |
+| `aureon_get_decision` | One decision record. |
+| `aureon_get_portfolio_history` | Stored daily portfolio totals. |
+| `aureon_get_health_history` | Stored health score samples. |
+| `aureon_prepare_report` | Build a report from stored rows and return the message to sign. |
+| `aureon_confirm_report` | Store the wallet signature. |
+| `aureon_list_reports` | Stored reports. |
+| `aureon_get_report` | One stored report. |
