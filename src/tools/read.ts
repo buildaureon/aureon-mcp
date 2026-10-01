@@ -87,10 +87,17 @@ export function registerReadTools(server: McpServer, client: AureonClient) {
 
   server.tool(
     "aureon_list_timeline",
-    "Timeline of events — objective changes, executions, health transitions",
-    { objectiveId: z.string().optional().describe("Filter by objective ID (omit for all)") },
-    async ({ objectiveId }) => {
+    "Timeline of events — objective changes, executions, health transitions. Pass before (an event id) and limit to read the next page.",
+    {
+      objectiveId: z.string().optional().describe("Filter by objective ID (omit for all)"),
+      before: z.string().optional().describe("Event id cursor. Omit for the newest page."),
+      limit: z.number().optional().describe("Page size, 1–500"),
+    },
+    async ({ objectiveId, before, limit }) => {
       try {
+        if (before || limit !== undefined) {
+          return ok(await client.getTimelinePage({ objectiveId, before, limit }));
+        }
         return ok(await client.getTimeline(objectiveId));
       } catch (err) {
         return fail(err);
