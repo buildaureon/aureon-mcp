@@ -1,8 +1,8 @@
 # Setup Guide
 
-Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.13` against the live AUREON API.
+Complete installation and host configuration for **`@buildaureon/mcp`** `v0.1.14` against the live AUREON API.
 
-This package is the official [Model Context Protocol](https://modelcontextprotocol.io) adapter for AUREON. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **54 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
+This package is the official [Model Context Protocol](https://modelcontextprotocol.io) adapter for AUREON. It wraps [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk) and exposes **62 tools** so Cursor, Claude Desktop, and other MCP hosts can call the Financial Compass control plane.
 
 There are two supported transports:
 
@@ -11,7 +11,7 @@ There are two supported transports:
 | **Hosted HTTP** | `https://mcp.aureonlabs.network/mcp` | None required to connect. Optional `X-Aureon-Api-Key` for your wallet tools. |
 | **Local stdio** | `npx -y @buildaureon/mcp` | Your issued `AUREON_API_KEY` in the host `env` block |
 
-Both surfaces are the same 54 tools. Neither signs or broadcasts. Confirm hosted health at [https://mcp.aureonlabs.network/healthz](https://mcp.aureonlabs.network/healthz).
+Both surfaces are the same 62 tools. Neither signs or broadcasts. Confirm hosted health at [https://mcp.aureonlabs.network/healthz](https://mcp.aureonlabs.network/healthz).
 
 Related docs: [Authentication](./auth.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -55,10 +55,10 @@ The MCP server never custodies funds and never signs chain transactions.
 | Item | Value |
 | --- | --- |
 | npm package | `@buildaureon/mcp` |
-| Version | `0.1.13` |
+| Version | `0.1.14` |
 | Depends on | `@buildaureon/sdk` |
 | Transports | Hosted Streamable HTTP at `https://mcp.aureonlabs.network/mcp`, or local stdio (`npx -y @buildaureon/mcp`) |
-| Tool count | 54 |
+| Tool count | 62 |
 | Default API | `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet. |
 | Console | [app.aureonlabs.network](https://app.aureonlabs.network) |
 
@@ -138,7 +138,7 @@ For **your** wallet (`aureon_me`, portfolio, objectives, restore, vault prepare)
 }
 ```
 
-Health check: [https://mcp.aureonlabs.network/healthz](https://mcp.aureonlabs.network/healthz) must report `ok: true` and `tools: 54`.
+Health check: a host running this build must report `ok: true` and `tools: 62`. `aureon_ping` stays open without a key.
 
 Use Option B when you want the key in host env instead of an HTTP header.
 
@@ -318,7 +318,7 @@ For write workflows (create objective, restore, prepare vault), see [./agent-gui
 
 ## Verify the tool surface
 
-A healthy install exposes auth, read, objective, portfolio, execution, market, vault prepare, and developer key tools — **54** in total.
+A healthy install exposes auth, read, objective, portfolio, execution, market, vault prepare, and developer key tools — **62** in total.
 
 You do not need every tool on day one. Start with:
 
@@ -354,7 +354,7 @@ Still stuck? Confirm HTTPS reachability to the API, then re-check that the key s
 
 ### Do I need to install the package globally?
 
-No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.13` is fetched on demand.
+No. Prefer `npx -y @buildaureon/mcp` in the host config so the published `v0.1.14` is fetched on demand.
 
 ### Is a Bearer token required?
 
@@ -370,7 +370,7 @@ Default (omit `AUREON_API_URL`) is the official API `https://api.aureonlabs.netw
 
 ### How is this different from `@buildaureon/sdk`?
 
-The SDK is for typed TypeScript programs. MCP is the same surface as **named tools** for AI hosts. Hosted HTTP and local stdio expose the same 54 tools. Both call the live API. Stdio authenticates with your issued key in host env. Hosted is URL-only for open tools; add `X-Aureon-Api-Key` for your wallet.
+The SDK is for typed TypeScript programs. MCP is the same surface as **named tools** for AI hosts. Hosted HTTP and local stdio expose the same 62 tools. Both call the live API. Stdio authenticates with your issued key in host env. Hosted is URL-only for open tools; add `X-Aureon-Api-Key` for your wallet.
 
 ### Where do I rotate a leaked key?
 
