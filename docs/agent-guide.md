@@ -4,7 +4,7 @@ Playbooks for AI agents using `@buildaureon/mcp` against the **live** AUREON API
 
 This guide teaches agents how to think, which tools to call, and how to talk honestly about settlement. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
 
-**Surface:** 54 tools · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for open tools; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast.
+**Surface:** 62 tools · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for open tools; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast.
 
 ---
 
@@ -84,7 +84,7 @@ Restore and execution receipts may include:
 
 ---
 
-## How to read a Phase 2 receipt
+## How to read a receipt
 
 After `aureon_restore_objective` or `aureon_run_execution`, inspect the returned receipt:
 
@@ -181,7 +181,7 @@ aureon_get_objective_registry
 
 Do not say the objective is on chain until confirm returns a record.
 
-Practical close script (host signs outside MCP): `pnpm --filter @buildaureon/mcp test:phase2` against a Phase 2 API.
+Practical close script (host signs outside MCP): `pnpm --filter @buildaureon/mcp test:phase2` against the API.
 
 ### C. Living Capital maintain (restore drift)
 
