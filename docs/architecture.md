@@ -1,6 +1,6 @@
 # Architecture
 
-How `@buildaureon/mcp` sits on top of `@buildaureon/sdk` and the hosted AUREON API.
+How `@buildaureon/mcp` `0.1.14` sits on top of `@buildaureon/sdk` `0.1.14` and the hosted AUREON API. This build registers 62 tools. The API health `version` (`0.2.1` in this tree) is the API, not the MCP package.
 
 This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the official adapter: a thin MCP server that forwards tool calls to the SDK. Two transports share that adapter — **local stdio** (`@buildaureon/mcp`) and **official hosted Streamable HTTP** (`https://mcp.aureonlabs.network/mcp`). Default API is `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet on the same official host. The operator app is the mainnet console.
 
@@ -8,7 +8,7 @@ This document is for humans integrating the package and for AI agents that need 
 
 ## 1. Overview
 
-**AUREON** exposes Financial Compass control-plane APIs (objectives, portfolio book, health, restore plans, vault prepare helpers, developer keys). Agents do not need to invent HTTP paths or auth headers when they can call named MCP tools instead.
+**AUREON** exposes Financial Compass control-plane APIs (objectives, portfolio book, health, restore plans, vault prepare helpers, developer keys, decision records, stored portfolio and health history, and wallet-signed reports). Agents do not need to invent HTTP paths or auth headers when they can call named MCP tools instead.
 
 **`@buildaureon/mcp`** is that named surface. It:
 
