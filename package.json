@@ -1,6 +1,6 @@
 {
   "name": "@buildaureon/mcp",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "MCP server for AUREON Financial Compass: Financial Compass capital context for AI agents",
   "type": "module",
   "main": "./dist/index.js",
@@ -54,7 +54,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@buildaureon/sdk": "workspace:*",
+    "@buildaureon/sdk": "0.1.14",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.25.67"
   },
