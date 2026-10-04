@@ -18,6 +18,22 @@ export function registerCompassTools(server: McpServer, client: AureonClient) {
   );
 
   server.tool(
+    "aureon_propose_restoration",
+    "Unsigned restoration from vault balances for the sleeve cap and the stable reserve floor. Returns to, data, and value for each step. Does not sign or broadcast. Both objectives must be manual. A full return to the sleeve cap is not the profit slice.",
+    {
+      sleeveObjectiveId: z.string().describe("risk_ceiling objective id with weightBound ceiling"),
+      reserveObjectiveId: z.string().describe("stable_allocation objective id with weightBound floor"),
+    },
+    async ({ sleeveObjectiveId, reserveObjectiveId }) => {
+      try {
+        return ok(await client.proposeRestoration({ sleeveObjectiveId, reserveObjectiveId }));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
     "aureon_run_execution",
     "Run restorative execution for an objective outside policy. Read receipt.settlement and receipt.verifiedOnChain — staged = never on-chain; vault + verifiedOnChain = chain-observed; vault without verified = submitted but not yet observed.",
     { objectiveId: z.string().describe("The objective ID") },
