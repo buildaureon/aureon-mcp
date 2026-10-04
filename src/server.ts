@@ -10,7 +10,7 @@ export async function startServer() {
 
   const server = new McpServer({
     name: "aureon",
-    version: "0.1.14",
+    version: "0.1.15",
   });
 
   registerTools(server, client, session);
