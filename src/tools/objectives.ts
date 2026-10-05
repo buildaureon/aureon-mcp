@@ -29,6 +29,14 @@ export function registerObjectiveTools(server: McpServer, client: AureonClient) 
         .number()
         .optional()
         .describe("Reinvest ratio for reward objectives"),
+      profitTakeRatio: z
+        .number()
+        .optional()
+        .describe("Fraction of the notional above the sleeve cap to sell. Not a full return to target."),
+      weightBound: z
+        .enum(["ceiling", "floor", "target"])
+        .optional()
+        .describe("ceiling misses only above the weight, floor only below, target on both sides"),
       targetSymbol: z
         .string()
         .nullable()
