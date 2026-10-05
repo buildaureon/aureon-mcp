@@ -10,6 +10,7 @@ export const SDK_TOOL_NAMES = [
   "aureon_list_timeline",
   "aureon_list_market_presets",
   "aureon_get_restore_plan",
+  "aureon_propose_restoration",
   "aureon_run_execution",
   "aureon_restore_objective",
   "aureon_list_executions",
