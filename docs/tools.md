@@ -6,7 +6,7 @@ Each tool maps to one public method on the `@buildaureon/sdk` client. Handlers v
 
 For request/response shapes, error codes, and HTTP contracts, see the **@buildaureon/sdk documentation**.
 
-**Tool count:** 62.
+**Tool count:** 63.
 
 **API:** default official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host.
 
@@ -52,7 +52,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | Dashboard & read | `aureon_get_overview`, `aureon_get_allocation_vs_target`, `aureon_get_objective_portfolio_flow`, `aureon_get_drift_restore_flow`, `aureon_get_receipt_verification_flow`, `aureon_get_portfolio_watch_flow`, `aureon_get_full_aureon_loop_flow`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` |
 | Objectives | `aureon_create_objective`, `aureon_apply_financial_intent`, `aureon_run_drift_restore_demo`, `aureon_run_receipt_verification_demo`, `aureon_run_portfolio_watch_demo`, `aureon_run_full_aureon_loop_demo`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` |
 | Portfolio write | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` |
-| Execution | `aureon_run_execution`, `aureon_restore_objective` |
+| Execution | `aureon_run_execution`, `aureon_restore_objective`, `aureon_propose_restoration` |
 | Market | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
 | Vault prepare | `aureon_prepare_vault_deposit`, `aureon_prepare_vault_withdraw` |
 | Developer keys | `aureon_list_api_keys`, `aureon_create_api_key`, `aureon_revoke_api_key`, `aureon_toggle_api_key` |
@@ -382,7 +382,22 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **When to use:** Always prefer reading the plan before `aureon_restore_objective` when explaining risk to a human.
 
-**Caveats:** Plans can change after marks or vault balances move. Refresh health / watchdog if the book is stale.
+**Caveats:** Plans can change after marks or vault balances move. Refresh health / watchdog if the book is stale. A plan that buys the holding back to target weight is not a profit slice.
+
+### `aureon_propose_restoration`
+
+**Purpose:** Build the unsigned restoration from vault balances. The sleeve step sells `profitTakeRatio` of the notional above the cap. The reserve step, only when stables are still under the floor after that slice, lifts the stable weight to the floor. Returns `to`, `data`, and `value` on each step. `transactionHash` is null. `sentBy` is null.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `sleeveObjectiveId` | yes | `risk_ceiling` with `weightBound: "ceiling"`, manual, and `profitTakeRatio`. |
+| `reserveObjectiveId` | yes | `stable_allocation` with `weightBound: "floor"`, manual. A different id from the sleeve. |
+
+**When to use:** After `aureon_get_health` on each id. The host shows every step to the governor before anyone signs.
+
+**Caveats:** Both objectives must be `automationMode: "manual"`. `auto` is rejected because keeper restore can send a vault transaction before the steps are checked. A full return to the sleeve cap is `fullReturnToTargetNotionalUsd`, not `sellNotionalUsd`. Each step sets `minOut` to 99% of the mark-implied buy. `transactionCheck` is `{ valid: true, issues: [] }` only when every step decodes to the vault, a non-zero amount, and a non-zero `minOut`. This call does not sign and does not broadcast. This package is `0.1.15`. Published `@buildaureon/mcp@0.1.14` and `https://mcp.aureonlabs.network` do not include this tool until `0.1.15` is published and deployed. `aureon_restore_objective` is a different call.
 
 ### `aureon_list_executions`
 
@@ -477,7 +492,9 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | `maxRiskScore` | no | For risk-ceiling kinds |
 | `reinvestRatio` | no | For reward kinds |
 | `targetSymbol` | no | Asset symbol (nullable); **locked after create** |
-| `automationMode` | no | `auto` \| `manual`; default **`auto`**; **locked after create** |
+| `profitTakeRatio` | no | Fraction of the notional above a sleeve cap to sell. Not a full return to the cap. |
+| `weightBound` | no | `ceiling` \| `floor` \| `target`. Omit for the two-sided target check. |
+| `automationMode` | no | `auto` \| `manual`; default **`auto`**; **locked after create**. `aureon_propose_restoration` requires `manual`. |
 
 **When to use:** New policy intent (e.g. maintain ~15% WETH automatically).
 
@@ -764,7 +781,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - Prepare tools are safe to call with an API key; broadcasting is a separate host step.
 - When summarizing restores, always include settlement type when the receipt provides it.
 
-This reference is the canonical MCP tool surface for live agents: **62 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast.
+This reference is the canonical MCP tool surface for live agents: **63 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast. `aureon_propose_restoration` does not broadcast. `aureon_restore_objective` on an `auto` objective can still be sent by the API keeper.
 
 ## Financial history
 
