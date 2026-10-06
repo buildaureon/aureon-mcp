@@ -1,6 +1,6 @@
 # Authentication Guide
 
-How **`@buildaureon/mcp`** `v0.1.14` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **62** tools over hosted HTTP or local stdio.
+How **`@buildaureon/mcp`** `v0.1.15` authenticates to the live AUREON API — aligned with `@buildaureon/sdk`, safe for humans and for agents that call the **63** tools over hosted HTTP or local stdio.
 
 Related docs: [Setup](./setup.md) · [Tools](./tools.md) · [Agent guide](./agent-guide.md) · [Architecture](./architecture.md) · [Security](./security.md) · [Package README](../README.md)
 
@@ -258,7 +258,7 @@ MCP host (Cursor / Claude)
     │  Streamable HTTP  https://mcp.aureonlabs.network/mcp
     │  or stdio  npx @buildaureon/mcp
     ▼
-adapter  (62 tools, no private key)
+adapter  (63 tools, no private key)
     │
     ▼
 @buildaureon/sdk  (HTTP, retries, types)
@@ -334,7 +334,7 @@ Do not reuse the compromised secret “temporarily.” Treat rotation as mandato
 
 If a typed SDK script works with your issued key but MCP fails, compare env names (`AUREON_API_KEY` vs hard-coded client options) and confirm the host actually injects env into the stdio child process.
 
-Package version for this guide: **`@buildaureon/mcp` `v0.1.14`**.
+Package version for this guide: **`@buildaureon/mcp` `v0.1.15`**.
 
 ---
 
