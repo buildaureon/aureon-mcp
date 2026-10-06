@@ -1,6 +1,6 @@
 # Architecture
 
-How `@buildaureon/mcp` `0.1.14` sits on top of `@buildaureon/sdk` `0.1.14` and the hosted AUREON API. This build registers 62 tools. The API health `version` (`0.2.1` in this tree) is the API, not the MCP package.
+How `@buildaureon/mcp` `0.1.15` sits on top of `@buildaureon/sdk` `0.1.15` and the hosted AUREON API. This build registers 63 tools. The API health `version` (`0.2.1` in this tree) is the API, not the MCP package.
 
 This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the official adapter: a thin MCP server that forwards tool calls to the SDK. Two transports share that adapter — **local stdio** (`@buildaureon/mcp`) and **official hosted Streamable HTTP** (`https://mcp.aureonlabs.network/mcp`). Default API is `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet on the same official host. The operator app is the mainnet console.
 
