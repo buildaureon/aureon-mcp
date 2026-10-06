@@ -4,7 +4,7 @@ Playbooks for AI agents using `@buildaureon/mcp` against the **live** AUREON API
 
 This guide teaches agents how to think, which tools to call, and how to talk honestly about settlement. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
 
-**Surface:** 62 tools · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for open tools; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast.
+**Surface:** 63 tools · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for open tools; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast.
 
 ---
 
