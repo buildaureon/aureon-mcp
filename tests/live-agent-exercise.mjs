@@ -26,6 +26,7 @@ import {
   http,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { MAINNET_CHAIN_ID } from "@buildaureon/sdk";
 
 const resolved = resolveAureonNetworkFromEnv();
 const API_URL = resolved.baseUrl;
@@ -34,7 +35,7 @@ const PK = process.env.AUREON_WALLET_PRIVATE_KEY?.trim();
 const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
 const RPC =
   process.env.AUREON_RPC_URL?.trim() ||
-  (CHAIN_ID === 4663
+  (CHAIN_ID === MAINNET_CHAIN_ID
     ? "https://rpc.mainnet.chain.robinhood.com"
     : "https://rpc.testnet.chain.robinhood.com");
 const BROADCAST = process.env.AUREON_BROADCAST === "1";
@@ -182,7 +183,7 @@ async function main() {
       kind: "balanced_portfolio",
       targetWeight: 0.2,
       tolerance: 0.05,
-      targetSymbol: "TSLA",
+      targetSymbol: "SPY",
       priority: "medium",
       automationMode: "auto",
     });
