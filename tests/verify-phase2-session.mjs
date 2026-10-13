@@ -1,5 +1,5 @@
 /**
- * Phase 2 MCP session: registry, restore, validate, settlement, audit.
+ * MCP session: registry, restore, validate, settlement, audit.
  * Never prints secrets.
  *
  * Uses the official API (https://api.aureonlabs.network) unless overridden.
@@ -24,13 +24,14 @@ import { registerTools } from "../src/tools/index.js";
 import { SDK_TOOL_NAMES } from "../src/tools/catalog.js";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { MAINNET_CHAIN_ID } from "@buildaureon/sdk";
 
 const resolved = resolveAureonNetworkFromEnv();
 const API = resolved.baseUrl;
 const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
 const RPC =
   process.env.AUREON_RPC_URL?.trim() ||
-  (CHAIN_ID === 4663
+  (CHAIN_ID === MAINNET_CHAIN_ID
     ? "https://rpc.mainnet.chain.robinhood.com"
     : "https://rpc.testnet.chain.robinhood.com");
 const API_KEY = process.env.AUREON_API_KEY?.trim() || "";
@@ -58,7 +59,7 @@ async function main() {
   if (!API_KEY) {
     throw new Error("Set AUREON_API_KEY. This script does not read local env files.");
   }
-  console.log(`Phase 2 MCP session → ${API}`);
+  console.log(`MCP session → ${API}`);
   console.log(`catalog ${SDK_TOOL_NAMES.length} tools`);
   const account = loadWallet();
   const session = createSessionTokenProvider(null);
@@ -111,7 +112,7 @@ async function main() {
   console.log("PASS registry_status", `enabled=${status.enabled} chain=${status.chainId}`);
 
   const objective = await call("aureon_create_objective", {
-    name: `MCP Phase 2 ${Date.now()}`,
+    name: `MCP ${Date.now()}`,
     kind: "stable_allocation",
     targetWeight: 0.2,
     tolerance: 0.05,
@@ -147,7 +148,7 @@ async function main() {
       await call("aureon_set_portfolio", {
         positions: [
           { symbol: "WETH", name: "Wrapped Ether", category: "gas", quantity: 1, markPriceUsd: 2500 },
-          { symbol: "TSLA", name: "Tesla", category: "stock_token", quantity: 10, markPriceUsd: 200 },
+          { symbol: "SPY", name: "SPDR S&P 500 ETF", category: "stock_token", quantity: 4, markPriceUsd: 500 },
         ],
       });
     }
@@ -156,7 +157,7 @@ async function main() {
     console.log("WARN book", err instanceof Error ? err.message : err);
   }
   await call("aureon_apply_market_event", {
-    symbol: "TSLA",
+    symbol: "SPY",
     priceChangeRatio: -0.2,
     name: "mcp-phase2-drift",
     autoRestore: false,
@@ -174,9 +175,9 @@ async function main() {
       receipt = null;
     }
     if (receipt) {
-      console.log("PASS restore blocked honestly", message.slice(0, 120));
+      console.log("PASS restore blocked as expected", message.slice(0, 120));
     } else if (/funded vault|not staged|no staged|sell-side|empty|deposit/i.test(message)) {
-      console.log("PASS restore blocked honestly", message.slice(0, 160));
+      console.log("PASS restore blocked as expected", message.slice(0, 160));
     } else {
       console.log("WARN restore", message.slice(0, 160));
     }
@@ -196,14 +197,14 @@ async function main() {
         executionId: receipt.id,
         transactionHash: "0x" + "11".repeat(32),
       });
-      console.log("WARN confirm settlement accepted a fake hash");
+      console.log("WARN confirm settlement accepted an unknown hash");
     } catch {
       console.log("PASS confirm settlement rejected without chain proof");
     }
   } else {
     const staged = await call("aureon_validate_receipt", {
       receipt: {
-        id: "exec_staged_honesty",
+        id: "exec_staged_label",
         objectiveId: objective.id,
         action: "Staged book restore",
         status: "confirmed",
@@ -224,7 +225,7 @@ async function main() {
   const trail = await call("aureon_get_audit_trail", { objectiveId: objective.id });
   if (trail.gaps?.some((g) => !g.code)) throw new Error("audit trail invented a gap");
   console.log("PASS audit trail", trail.message);
-  console.log("OK Phase 2 MCP session");
+  console.log("OK MCP session");
 }
 
 main().catch((err) => {
