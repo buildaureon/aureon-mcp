@@ -1,7 +1,7 @@
 /**
- * FULL MCP E2E — every SDK tool via MCP, real wallet sign, on-chain vault tx when funded.
+ * FULL MCP E2E - every SDK tool via MCP, real wallet sign, on-chain vault tx when funded.
  *
- * Env (public / CI friendly — no monorepo paths):
+ * Env (public / CI friendly - no monorepo paths):
  *   AUREON_API_KEY              issued developer key OR product gate key
  *   AUREON_WALLET_PRIVATE_KEY   0x… signing key (required for wallet auth + broadcast)
  *   AUREON_NETWORK              optional; omit for official API / mainnet; testnet = stay on testnet
@@ -19,6 +19,7 @@ import { registerTools } from "../src/tools/index.js";
 import { SDK_TOOL_NAMES } from "../src/tools/catalog.js";
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { MAINNET_CHAIN_ID } from "@buildaureon/sdk";
 
 const resolved = resolveAureonNetworkFromEnv();
 const API_URL = resolved.baseUrl;
@@ -26,7 +27,7 @@ const API_KEY = process.env.AUREON_API_KEY?.trim();
 const CHAIN_ID = Number(process.env.AUREON_CHAIN_ID || resolved.chainId);
 const RPC =
   process.env.AUREON_RPC_URL?.trim() ||
-  (CHAIN_ID === 4663
+  (CHAIN_ID === MAINNET_CHAIN_ID
     ? "https://rpc.mainnet.chain.robinhood.com"
     : "https://rpc.testnet.chain.robinhood.com");
 
@@ -240,11 +241,11 @@ async function main() {
       const set = await call(client, "aureon_set_portfolio", {
         positions: [
           { symbol: "WETH", name: "Wrapped Ether", category: "gas", quantity: 1, markPriceUsd: 2500 },
-          { symbol: "TSLA", name: "Tesla", category: "stock_token", quantity: 10, markPriceUsd: 200 },
+          { symbol: "SPY", name: "SPDR S&P 500 ETF", category: "stock_token", quantity: 4, markPriceUsd: 500 },
         ],
       });
       mark("aureon_sync_portfolio", sync.ok ? "PASS" : "WARN", sync.ok ? "empty book; set_portfolio ok" : sync.text);
-      mark("aureon_set_portfolio", set.ok ? "PASS" : "FAIL", set.ok ? "seeded WETH+TSLA" : set.text);
+      mark("aureon_set_portfolio", set.ok ? "PASS" : "FAIL", set.ok ? "seeded WETH+SPY" : set.text);
     }
     if (sync.ok && !empty) mark("aureon_set_portfolio", "SKIP", "sync had positions");
   }
@@ -258,7 +259,7 @@ async function main() {
       kind: "balanced_portfolio",
       targetWeight: 0.4,
       tolerance: 0.05,
-      targetSymbol: "TSLA",
+      targetSymbol: "SPY",
       priority: "high",
     });
     if (create.ok) {
@@ -291,12 +292,12 @@ async function main() {
   }
   {
     const ev = await call(client, "aureon_apply_market_event", {
-      symbol: "TSLA",
+      symbol: "SPY",
       priceChangeRatio: -0.2,
       name: "mcp-e2e-shock",
       autoRestore: false,
     });
-    mark("aureon_apply_market_event", ev.ok ? "PASS" : "FAIL", ev.ok ? "TSLA -20%" : ev.text);
+    mark("aureon_apply_market_event", ev.ok ? "PASS" : "FAIL", ev.ok ? "SPY -20%" : ev.text);
   }
 
   // --- restore plan + executions ---
@@ -327,7 +328,7 @@ async function main() {
     }
   }
 
-  // --- Phase 2 registry / receipts / settlement / audit ---
+  // --- Registry / receipts / settlement / audit ---
   {
     const status = await call(client, "aureon_registry_status");
     mark(
@@ -461,11 +462,11 @@ async function main() {
   }
   {
     const intent = await call(client, "aureon_apply_financial_intent", {
-      brief: "Keep about 20 percent in stables for the Phase 2 MCP walk",
+      brief: "Keep about 20 percent in stables for the MCP walk",
       kind: "stable_allocation",
       targetWeight: 0.2,
       tolerance: 0.05,
-      name: "MCP Phase 2 intent",
+      name: "MCP intent",
     });
     mark(
       "aureon_apply_financial_intent",
