@@ -34,6 +34,60 @@ export function registerCompassTools(server: McpServer, client: AureonClient) {
   );
 
   server.tool(
+    "aureon_confirm_restoration",
+    "Store a vault rebalance the session wallet already broadcast. Checks the receipt. Does not sign or broadcast.",
+    {
+      objectiveId: z.string().describe("Objective id the rebalance belongs to"),
+      transactionHash: z.string().describe("32-byte transaction hash from the wallet broadcast"),
+    },
+    async ({ objectiveId, transactionHash }) => {
+      try {
+        return ok(await client.confirmRestoration(objectiveId, transactionHash));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
+    "aureon_check_policy",
+    "Check one proposed agent hire against the wallet's financial objective. Returns allow, refuse, or authorization_required. Does not send the hire and does not sign.",
+    {
+      agentId: z.string().describe("Calling agent id"),
+      taskId: z.string().describe("Task id for this hire"),
+      objectiveId: z.string().describe("AUREON objective id owned by this wallet"),
+      action: z
+        .object({
+          type: z.string().describe("Must be hire"),
+          asset: z.string().describe("ETH, or SOL priced as an ETH equivalent"),
+          amount: z.string().describe("Positive decimal in that asset"),
+          agent: z.string().describe("Agent being paid"),
+        })
+        .describe("Proposed hire"),
+    },
+    async (input) => {
+      try {
+        return ok(await client.checkPolicy(input));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
+    "aureon_get_policy_check",
+    "Read one stored hire decision by actionId. Does not send the hire and does not sign.",
+    { actionId: z.string().describe("Stored policy action id") },
+    async ({ actionId }) => {
+      try {
+        return ok(await client.getPolicyCheck(actionId));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
     "aureon_run_execution",
     "Run restorative execution for an objective outside policy. Read receipt.settlement and receipt.verifiedOnChain — staged = never on-chain; vault + verifiedOnChain = chain-observed; vault without verified = submitted but not yet observed.",
     { objectiveId: z.string().describe("The objective ID") },
