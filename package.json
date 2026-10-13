@@ -1,6 +1,6 @@
 {
   "name": "@buildaureon/mcp",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "MCP server for AUREON Financial Compass: Financial Compass capital context for AI agents",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,7 +27,7 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "test:e2e": "tsx tests/e2e-full.mjs",
     "test:phase2": "tsx tests/verify-phase2-session.mjs",
     "test:live-agent": "tsx tests/live-agent-exercise.mjs",
@@ -54,7 +54,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@buildaureon/sdk": "0.1.15",
+    "@buildaureon/sdk": "0.1.16",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.25.67"
   },
@@ -64,5 +64,8 @@
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "viem": "^2.55.0"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
   }
 }
