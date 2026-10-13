@@ -2,9 +2,9 @@
 
 Playbooks for AI agents using `@buildaureon/mcp` against the **live** AUREON API.
 
-This guide teaches agents how to think, which tools to call, and how to talk honestly about settlement. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
+This guide teaches agents how to think, which tools to call, and how to describe settlement accurately. Pair it with the [tool reference](./tools.md). For typed contracts and error codes, see the **@buildaureon/sdk documentation**.
 
-**Surface:** 63 tools · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for open tools; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast.
+**Surface:** 66 tools in this build · hosted `https://mcp.aureonlabs.network/mcp` (URL-only for `aureon_ping` and `aureon_validate_receipt`; optional `X-Aureon-Api-Key` for your wallet) or local stdio with `AUREON_API_KEY` · optional Bearer · private key only outside MCP for broadcast. The public host lists 66 tools after this build is deployed.
 
 ---
 
@@ -37,7 +37,7 @@ Decide:
 - Do we restore an existing breach?
 - Is this only a rehearsal (market event)?
 
-Prefer **Automatic** (`automationMode: "auto"`) for agents. Manual mode is for humans who must Approve in the utility.
+Prefer **Automatic** for a keeper restore. Create the sleeve and the reserve as `manual` when the next call is `aureon_propose_restoration`.
 
 ### 3. Act
 
@@ -55,7 +55,21 @@ Never claim success from prepare alone. Never claim on-chain settlement unless t
 | Optional Bearer | Wallet session via nonce → sign → `aureon_verify_wallet` (wins if both present) |
 | Private key | **Outside MCP only** — host signs unsigned vault steps |
 
-The MCP server is not a custodian and not a broadcaster. `prepare_*` returns unsigned steps.
+The MCP server is not a custodian and not a broadcaster. `prepare_*` returns unsigned steps. `aureon_check_policy` and `aureon_propose_restoration` return a decision or unsigned steps. `aureon_confirm_restoration` stores a receipt the wallet already broadcast. The host signs.
+
+### Hire check
+
+1. Create the objective with `hireLimitEth`. Set `hireApprovalRequired` when the user must approve a hire inside that limit.
+2. `aureon_check_policy` with type `hire`. `asset` is `ETH`, or `SOL` priced as an ETH equivalent against that cap. The amount is a positive decimal in that asset.
+3. `allow` means the hire is inside the limit. `refuse` means it stops, including a missing SOL or ETH price and any asset other than ETH or SOL. `authorization_required` means the user decides.
+4. `aureon_get_policy_check` reads the same decision. Nothing is signed or sent.
+
+### Unsigned restoration
+
+1. Create a manual sleeve with `weightBound: "ceiling"` and `profitTakeRatio`, and a manual reserve with `weightBound: "floor"`.
+2. `aureon_propose_restoration` with both ids.
+3. Show `to`, `data`, and `value`. `transactionHash` stays null until the host signs.
+4. After the wallet broadcasts and the receipt is mined, `aureon_confirm_restoration` with the objective id and the transaction hash. That call checks the receipt and stores the execution. It does not sign and it does not broadcast.
 
 ---
 
@@ -65,6 +79,8 @@ The MCP server is not a custodian and not a broadcaster. `prepare_*` returns uns
 | --- | --- |
 | `automationMode` | Defaults to **`auto`** on create. Locked after create. |
 | `targetSymbol` | Locked after create. Recreate to change the token. |
+| `hireLimitEth` | Set on create. Maximum ETH for one agent hire. ETH is compared directly. SOL is priced as an ETH equivalent with live USD marks. |
+| `hireApprovalRequired` | Set on create. A hire inside the cap asks the user first. |
 | Update patch | Name, weight, tolerance, priority (and related numeric fields) — **not** symbol/mode. |
 
 Agents: create Automatic objectives unless the human explicitly asks for Manual.
@@ -80,7 +96,7 @@ Restore and execution receipts may include:
 | `vault` | On-chain / vault-backed settlement | “Settled on-chain via vault.” |
 | `staged` | Ledger-local / staged settlement | “Staged (not on-chain).” |
 
-**Honesty rule:** If the field is missing or unclear, say so. Do not upgrade `staged` to “on-chain” in chat.
+**Labeling rule:** If the field is missing or unclear, say so. Do not upgrade `staged` to “on-chain” in chat.
 
 ---
 
@@ -100,7 +116,7 @@ After `aureon_restore_objective` or `aureon_run_execution`, inspect the returned
 
 Cross-check with `aureon_list_timeline`: find events where `payload.executionId` matches `receipt.id` and confirm `payload.settlement` matches the receipt.
 
-**Do not say:** “Every restore is on-chain.” Staged receipts are honest book updates when vault is unavailable or unfunded. Do not say “chain-verified” unless `verifiedOnChain` is true or `aureon_get_execution_settlement` returns a record. After every restore, call **`aureon_validate_receipt`** — if validation fails, report the issues and do not override them.
+**Do not say:** “Every restore is on-chain.” Staged receipts are book updates when vault is unavailable or unfunded. Do not say “chain-verified” unless `verifiedOnChain` is true or `aureon_get_execution_settlement` returns a record. After every restore, call **`aureon_validate_receipt`** — if validation fails, report the issues and do not override them.
 
 ---
 
@@ -348,7 +364,7 @@ Or one-shot: `aureon_run_receipt_verification_demo`.
 **Agent language**
 
 - Beat 1: “Restore returned a receipt — status `{status}`, result says `{result}`. That is a **claim**, not proof.”
-- Beat 2: “`aureon_validate_receipt` — schema + honesty check. If invalid, report issues; do not say success.”
+- Beat 2: “`aureon_validate_receipt` — schema + settlement check. If invalid, report issues; do not say success.”
 - Beat 3: “For vault receipts, `aureon_get_execution_settlement` — `verifiedOnChain: true` means independent settlement record. Staged receipts can validate but are **never** chain-verified.”
 - Link back to (receipt exists after restore). Never say “chain-verified” unless `verifiedOnChain` or settlement record confirms it.
 
@@ -418,7 +434,7 @@ Or one-shot: `aureon_run_full_aureon_loop_demo`.
 ```text
 You have AUREON MCP tools against the live API.
 Prefer aureon_ping / aureon_me / aureon_sync_portfolio before mutations.
-Use automationMode auto unless the user explicitly asks for manual.
+Use automationMode auto for a keeper restore. Use manual for a sleeve and a reserve that will be proposed and not sent.
 Never claim on-chain settlement unless the restore receipt says settlement=vault.
 Never ask the user for a private key; for deposits call prepare tools and tell them
 to sign the returned steps in their wallet.
@@ -444,7 +460,7 @@ Follow read → decide → act. Confirm with a second read after writes.
 
 > “Fix my portfolio.” → Ask which objective, whether to restore vs recreate, and whether the vault is funded.
 
-> “Make it manual.” → Confirm they want Manual Approve (human UI). Prefer staying Automatic for agent loops.
+> “Make it manual.” → Use manual for an unsigned restoration. A keeper restore stays automatic.
 
 > “Deposit 1 ETH.” → Clarify prepare-only vs they will sign; never imply MCP will broadcast.
 
@@ -463,23 +479,23 @@ Avoid these failure modes.
 | Spamming restore | Flapping health, noisy timeline | Re-read health; restore once; confirm |
 | Calling market events “live prices” | Misleads capital decisions | Label as rehearsal |
 | Claiming `staged` as on-chain | Breaks trust | Quote `settlement` literally |
-| Inventing missing audit proof | Fake explorer / registry / settlement | Use `aureon_get_audit_trail` and report labeled gaps |
+| Inventing missing audit proof | Made-up explorer / registry / settlement | Use `aureon_get_audit_trail` and report labeled gaps |
 | Asking for private keys | Violates the trust model | Prepare tools + host wallet only |
 | Clearing portfolio casually | Destructive book wipe | Confirm; prefer sync |
 | Rotating keys into chat | Secret leakage | Create key; instruct secure env storage |
 
 ---
 
-## Automatic-only guidance for agents
+## Keeper restore and unsigned restoration
 
-Agents operate best as **keepers with Automatic objectives**:
+A keeper restore uses Automatic objectives:
 
 1. On first use the vault is empty: `aureon_restore_objective` must **409**. Call `aureon_prepare_vault_deposit` and return unsigned steps. **Do not fund.** The user signs when they use the product (same as testnet).
-2. Create objectives with `automationMode: "auto"`.
+2. Create those objectives with `automationMode: "auto"`.
 3. Watch health via `aureon_refresh_watchdog` / `aureon_get_health`.
 4. On breach after the user has funded: plan → `aureon_restore_objective` → confirm timeline / executions.
 
-Manual mode remains available for humans who want Approve gates. If the operator insists on Manual, say clearly that agent-driven restores may be limited and the utility Approve surface is the control plane for those swaps.
+An unsigned restoration is a different call. Create the sleeve and the reserve with `automationMode: "manual"`, then `aureon_propose_restoration`. The steps come back unsigned. After the wallet broadcasts, `aureon_confirm_restoration` stores the mined receipt. `aureon_restore_objective` on an `auto` objective can still be sent by the keeper.
 
 ---
 
@@ -517,7 +533,7 @@ No. Prepare tools return unsigned steps. Private keys stay outside MCP.
 
 ### Why is my restore `staged`?
 
-Staged means ledger-local settlement for that receipt. Fund the vault and use Automatic restore paths when you need `settlement: "vault"`. Always label honestly.
+Staged means ledger-local settlement for that receipt. Fund the vault and use Automatic restore paths when you need `settlement: "vault"`. Always label it exactly.
 
 ### Can I change `targetSymbol` later?
 
@@ -620,7 +636,7 @@ ACT:    prepare_* (host signs) | create_objective(auto) | restore_objective
 CHECK:  timeline / executions / health — quote settlement=vault|staged
 ```
 
-Keep the loop short. Prefer Automatic. Never invent settlement. Never touch private keys inside MCP.
+Keep the loop short. Use Automatic for a keeper restore and manual for an unsigned restoration. Never invent settlement. Never touch private keys inside MCP.
 
 ---
 
