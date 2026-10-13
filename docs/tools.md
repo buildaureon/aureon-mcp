@@ -6,11 +6,11 @@ Each tool maps to one public method on the `@buildaureon/sdk` client. Handlers v
 
 For request/response shapes, error codes, and HTTP contracts, see the **@buildaureon/sdk documentation**.
 
-**Tool count:** 63.
+**Tool count:** 66.
 
 **API:** default official API `https://api.aureonlabs.network` on mainnet. Optional `AUREON_NETWORK=testnet` stays on testnet on the same host.
 
-**Hosted URL:** `aureon_ping`, `aureon_list_market_presets`, and `aureon_validate_receipt` work without a user key. Every other tool needs `X-Aureon-Api-Key` (your issued Developers key) or stdio `AUREON_API_KEY`.
+**Hosted URL:** `aureon_ping` and `aureon_validate_receipt` work without a user key. Every other tool, including `aureon_list_market_presets`, needs `X-Aureon-Api-Key` (your issued Developers key) or stdio `AUREON_API_KEY`.
 
 ---
 
@@ -27,7 +27,7 @@ These conventions apply to every tool below.
 | Default automation | `aureon_create_objective` defaults `automationMode` to `"auto"`. |
 | Locked at create | `targetSymbol` and `automationMode` are immutable after create. Recreate the objective to change them. |
 | Unsigned prepare | `aureon_prepare_vault_deposit` and `aureon_prepare_vault_withdraw` never broadcast. |
-| Settlement honesty | Restore / execution receipts may show `settlement: "vault"` (on-chain) or `"staged"` (ledger-local). Label them honestly. |
+| Settlement labels | Restore / execution receipts may show `settlement: "vault"` (on-chain) or `"staged"` (ledger-local). Label them exactly. |
 
 The catalog includes `aureon_dev_login` for preview APIs only. On hosted APIs it fails by design — agents should use an issued key (or optional Bearer) instead. Keys are issued at the mainnet console, [app.aureonlabs.network](https://app.aureonlabs.network).
 
@@ -52,7 +52,8 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | Dashboard & read | `aureon_get_overview`, `aureon_get_allocation_vs_target`, `aureon_get_objective_portfolio_flow`, `aureon_get_drift_restore_flow`, `aureon_get_receipt_verification_flow`, `aureon_get_portfolio_watch_flow`, `aureon_get_full_aureon_loop_flow`, `aureon_get_portfolio`, `aureon_list_objectives`, `aureon_get_objective`, `aureon_get_health`, `aureon_list_timeline`, `aureon_list_market_presets`, `aureon_get_restore_plan`, `aureon_list_executions`, `aureon_get_vault`, `aureon_get_vault_status` |
 | Objectives | `aureon_create_objective`, `aureon_apply_financial_intent`, `aureon_run_drift_restore_demo`, `aureon_run_receipt_verification_demo`, `aureon_run_portfolio_watch_demo`, `aureon_run_full_aureon_loop_demo`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` |
 | Portfolio write | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` |
-| Execution | `aureon_run_execution`, `aureon_restore_objective`, `aureon_propose_restoration` |
+| Execution | `aureon_run_execution`, `aureon_restore_objective`, `aureon_propose_restoration`, `aureon_confirm_restoration` |
+| Hire policy | `aureon_check_policy`, `aureon_get_policy_check` |
 | Market | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
 | Vault prepare | `aureon_prepare_vault_deposit`, `aureon_prepare_vault_withdraw` |
 | Developer keys | `aureon_list_api_keys`, `aureon_create_api_key`, `aureon_revoke_api_key`, `aureon_toggle_api_key` |
@@ -395,9 +396,58 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | `sleeveObjectiveId` | yes | `risk_ceiling` with `weightBound: "ceiling"`, manual, and `profitTakeRatio`. |
 | `reserveObjectiveId` | yes | `stable_allocation` with `weightBound: "floor"`, manual. A different id from the sleeve. |
 
-**When to use:** After `aureon_get_health` on each id. The host shows every step to the governor before anyone signs.
+**When to use:** After `aureon_get_health` on each id. The host shows every step before anyone signs.
 
-**Caveats:** Both objectives must be `automationMode: "manual"`. `auto` is rejected because keeper restore can send a vault transaction before the steps are checked. A full return to the sleeve cap is `fullReturnToTargetNotionalUsd`, not `sellNotionalUsd`. Each step sets `minOut` to 99% of the mark-implied buy. `transactionCheck` is `{ valid: true, issues: [] }` only when every step decodes to the vault, a non-zero amount, and a non-zero `minOut`. This call does not sign and does not broadcast. This package is `0.1.15`. Published `@buildaureon/mcp@0.1.14` and `https://mcp.aureonlabs.network` do not include this tool until `0.1.15` is published and deployed. `aureon_restore_objective` is a different call.
+**Caveats:** Both objectives must be `automationMode: "manual"`. `auto` is rejected because keeper restore can send a vault transaction before the steps are checked. A full return to the sleeve cap is `fullReturnToTargetNotionalUsd`, not `sellNotionalUsd`. Each step sets `minOut` to 99% of the mark-implied buy. `transactionCheck` is `{ valid: true, issues: [] }` only when every step decodes to the vault, a non-zero amount, and a non-zero `minOut`. This call does not sign and does not broadcast. This package is `0.1.16`. `aureon_restore_objective` is a different call.
+
+### `aureon_confirm_restoration`
+
+**Purpose:** Store a vault rebalance the session wallet already broadcast. The API checks the receipt and stores a confirmed execution.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `objectiveId` | yes | Objective the rebalance belongs to |
+| `transactionHash` | yes | 32-byte hash from the wallet broadcast, after the receipt is mined |
+
+**When to use:** After `aureon_propose_restoration`, the host signs, and the transaction is mined.
+
+**Caveats:** The receipt must have succeeded. The sender must be the session wallet. `to` must be the vault. The calldata must be the rebalance. This call does not sign and does not broadcast. `aureon_restore_objective` and `aureon_run_execution` are different calls and can still let a keeper send on an `auto` objective. `aureon_confirm_execution_settlement` confirms settlement on an existing execution and is a separate tool.
+
+### `aureon_check_policy`
+
+**Purpose:** Read the financial objective and decide one proposed agent hire. Returns `allow`, `refuse`, or `authorization_required`. Does not sign and does not send.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `agentId` | yes | Calling agent id |
+| `taskId` | yes | Task id for this hire |
+| `objectiveId` | yes | Objective owned by this key's wallet |
+| `action.type` | yes | `hire` |
+| `action.asset` | yes | `ETH`, or `SOL` priced as an ETH equivalent against `hireLimitEth`. Any other asset is `refuse`. |
+| `action.amount` | yes | Positive decimal in that asset. ETH is compared directly. SOL is converted with live USD marks and rounded up. Equal to the cap is inside the limit. A missing SOL or ETH price is `refuse`. |
+| `action.agent` | yes | Agent being paid. This call does not pay them. |
+
+**When to use:** Before an agent hire proceeds. The caller uses an issued Developers key.
+
+**Caveats:** Above the cap is `refuse`, including when approval is also required. Inside the cap with `hireApprovalRequired` is `authorization_required` and `policy.passed` is false. A missing objective is not stored.
+
+### `aureon_get_policy_check`
+
+**Purpose:** Read one stored hire decision by `actionId`.
+
+**Typical args:**
+
+| Arg | Required | Notes |
+| --- | --- | --- |
+| `actionId` | yes | Id returned by `aureon_check_policy` |
+
+**When to use:** Confirm the same decision later. Another wallet's id is not found.
+
+**Caveats:** This call does not sign and does not send.
 
 ### `aureon_list_executions`
 
@@ -494,11 +544,13 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 | `targetSymbol` | no | Asset symbol (nullable); **locked after create** |
 | `profitTakeRatio` | no | Fraction of the notional above a sleeve cap to sell. Not a full return to the cap. |
 | `weightBound` | no | `ceiling` \| `floor` \| `target`. Omit for the two-sided target check. |
+| `hireLimitEth` | no | Maximum ETH for one agent hire. Set on create. |
+| `hireApprovalRequired` | no | When true, a hire inside the cap returns `authorization_required`. |
 | `automationMode` | no | `auto` \| `manual`; default **`auto`**; **locked after create**. `aureon_propose_restoration` requires `manual`. |
 
 **When to use:** New policy intent (e.g. maintain ~15% WETH automatically).
 
-**Caveats:** Agents should use **Automatic** (`auto`) unless the human explicitly wants Manual Approve. To change symbol or mode later, create a new objective (pause or leave the old one).
+**Caveats:** A keeper restore uses **Automatic** (`auto`). `aureon_propose_restoration` requires `manual`. To change symbol, hire limit, or mode later, create a new objective (pause or leave the old one).
 
 ### `aureon_apply_financial_intent`
 
@@ -574,7 +626,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **When to use:** Explicit execution path when the product flow calls for `runExecution` rather than vault-backed restore.
 
-**Caveats:** Prefer reading health / plan first. Report settlement type honestly from the receipt.
+**Caveats:** Prefer reading health / plan first. Report the settlement type exactly as the receipt shows.
 
 ### `aureon_restore_objective`
 
@@ -613,7 +665,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **Purpose:** Validates an execution receipt locally (no API call). Returns `{ valid, issues }`.
 
-**When to use:** After `aureon_restore_objective` or `aureon_list_executions` — confirm the receipt is honest before reporting to the operator.
+**When to use:** After `aureon_restore_objective` or `aureon_list_executions` — confirm the receipt is valid before reporting to the operator.
 
 **Caveats:** Validation is schema + policy only; it does not re-fetch chain state. If `valid: false`, quote `issues` and do not claim on-chain settlement.
 
@@ -739,7 +791,7 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 
 **When to use:** “Did this restore actually happen?” / follow intent → receipt → settlement without stitching four tools.
 
-**Caveats:** Missing proof is labeled as a gap. Staged receipts are never on-chain. Do not invent explorer links or `verifiedOnChain`. Testnet only.
+**Caveats:** Missing proof is labeled as a gap. Staged receipts are never on-chain. Do not invent explorer links or `verifiedOnChain`.
 
 ---
 
@@ -777,11 +829,11 @@ Successful calls return structured JSON (formatted for agents). Failures return 
 - Tool names are stable strings beginning with `aureon_`.
 - Argument validation is strict; omit unknown fields rather than inventing them.
 - Prefer read tools before write tools in every agent turn that mutates state.
-- Automatic mode is the agent default; Manual mode is a human Approve surface.
+- Automatic is the default for a keeper restore. Unsigned restoration uses manual so the steps are not sent.
 - Prepare tools are safe to call with an API key; broadcasting is a separate host step.
 - When summarizing restores, always include settlement type when the receipt provides it.
 
-This reference is the canonical MCP tool surface for live agents: **63 tools**, live API, issued key (optional Bearer), and private key only outside MCP for broadcast. `aureon_propose_restoration` does not broadcast. `aureon_restore_objective` on an `auto` objective can still be sent by the API keeper.
+This reference is the canonical MCP tool surface for live agents: **66 tools** in this build, live API, issued key (optional Bearer), and private key only outside MCP for broadcast. `aureon_check_policy`, `aureon_propose_restoration`, and `aureon_confirm_restoration` do not broadcast. `aureon_restore_objective` on an `auto` objective can still be sent by the API keeper. The public host lists 66 tools after this build is deployed.
 
 ## Financial history
 
