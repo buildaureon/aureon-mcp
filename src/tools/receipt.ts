@@ -6,7 +6,7 @@ import { ok } from "./handler.js";
 export function registerReceiptTools(server: McpServer) {
   server.tool(
     "aureon_validate_receipt",
-    "Validates an execution receipt locally (schema + settlement honesty). No API call. Returns { valid, issues }. Do not trust or summarize a receipt as on-chain when validation fails.",
+    "Validates an execution receipt locally (schema + settlement labels). No API call. Returns { valid, issues }. Do not trust or summarize a receipt as on-chain when validation fails.",
     {
       receipt: z
         .record(z.unknown())
