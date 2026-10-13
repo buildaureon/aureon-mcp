@@ -34,7 +34,7 @@ const DUMMY_POSITIONS = [
     markPriceUsd: 2500,
   },
   {
-    symbol: "TSLA",
+    symbol: "SPY",
     name: "Tesla Token",
     category: "stock_token",
     quantity: 10,
@@ -190,7 +190,7 @@ async function main() {
     kind: "balanced_portfolio",
     targetWeight: 0.4,
     tolerance: 0.05,
-    targetSymbol: "TSLA",
+    targetSymbol: "SPY",
   });
 
   /** @type {string | undefined} */
@@ -216,7 +216,7 @@ async function main() {
   await runTool(client, "aureon_refresh_watchdog");
 
   await runTool(client, "aureon_apply_market_event", {
-    symbol: "TSLA",
+    symbol: "SPY",
     priceChangeRatio: -0.05,
     autoRestore: false,
   });
