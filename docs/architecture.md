@@ -1,6 +1,6 @@
 # Architecture
 
-How `@buildaureon/mcp` `0.1.15` sits on top of `@buildaureon/sdk` `0.1.15` and the hosted AUREON API. This build registers 63 tools. The API health `version` (`0.2.1` in this tree) is the API, not the MCP package.
+How `@buildaureon/mcp` `0.1.16` sits on top of `@buildaureon/sdk` `0.1.16` and the hosted AUREON API. This build registers 66 tools. The API health `version` (`0.2.2` in this tree) is the API, not the MCP package. The public host lists 66 tools after this build is deployed.
 
 This document is for humans integrating the package and for AI agents that need a stable mental model of layers, ownership, and request flow. It describes the official adapter: a thin MCP server that forwards tool calls to the SDK. Two transports share that adapter — **local stdio** (`@buildaureon/mcp`) and **official hosted Streamable HTTP** (`https://mcp.aureonlabs.network/mcp`). Default API is `https://api.aureonlabs.network` on mainnet. `AUREON_NETWORK=testnet` stays on testnet on the same official host. The operator app is the mainnet console.
 
@@ -311,7 +311,7 @@ Agents should pin a known MCP package version in host config when reproducibilit
 
 1. **Thin adapter** — do not reimplement SDK validation or policy in MCP.
 2. **One tool per SDK method** — keep discovery and docs mechanical.
-3. **Honest settlement** — pass through `settlement` fields; never claim on-chain when staged.
+3. **Clear settlement** — pass through `settlement` fields; never claim on-chain when staged.
 4. **Non-custodial** — prepare tools stop at unsigned calldata.
 5. **Official hosted HTTP, or local stdio** — use `https://mcp.aureonlabs.network/mcp` for the official Streamable HTTP host. Do not expose your own stdio child on the public internet.
 6. **Secrets stay out of logs** — formatters must not dump env or Authorization headers.
