@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { OFFICIAL_API_BASE_URL } from "@buildaureon/sdk";
 import { loadConfig } from "../src/config.js";
+import { MAINNET_CHAIN_ID, TESTNET_CHAIN_ID } from "@buildaureon/sdk";
 
 function withEnv(
   patch: Record<string, string | undefined>,
@@ -41,7 +42,7 @@ test("MCP default is the official API / mainnet", () => {
       const cfg = loadConfig();
       assert.equal(cfg.network, "mainnet");
       assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
-      assert.equal(cfg.chainId, 4663);
+      assert.equal(cfg.chainId, MAINNET_CHAIN_ID);
     }
   );
 });
@@ -58,7 +59,7 @@ test("MCP AUREON_NETWORK=testnet keeps the official API", () => {
       const cfg = loadConfig();
       assert.equal(cfg.network, "testnet");
       assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
-      assert.equal(cfg.chainId, 46630);
+      assert.equal(cfg.chainId, TESTNET_CHAIN_ID);
     }
   );
 });
@@ -75,7 +76,7 @@ test("MCP AUREON_NETWORK=mainnet keeps the official API", () => {
       const cfg = loadConfig();
       assert.equal(cfg.network, "mainnet");
       assert.equal(cfg.apiUrl, OFFICIAL_API_BASE_URL);
-      assert.equal(cfg.chainId, 4663);
+      assert.equal(cfg.chainId, MAINNET_CHAIN_ID);
     }
   );
 });
