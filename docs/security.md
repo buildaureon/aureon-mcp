@@ -89,7 +89,7 @@ This is a **light** threat model: enough to drive defaults, not a formal audit r
 | Silent auto-trade without a plan | Never — restores are explicit tool calls |
 | Persist secrets to disk | Never |
 | Expose a public HTTP MCP endpoint | Not supported / not recommended |
-| Claim `settlement: "vault"` when staged | Never — pass through API honesty fields |
+| Claim `settlement: "vault"` when staged | Never — pass through API settlement fields |
 | Print API keys in tool results | Must not |
 
 If a fork or wrapper adds signing inside the MCP process, it is **no longer** the same trust model. Treat that as a different product with a different review bar.
@@ -239,7 +239,7 @@ Use this before enabling `@buildaureon/mcp` on a machine that can affect real ca
 ### If an agent mis-fired writes
 
 1. Pause the objective or agent host.
-2. Inspect health, timeline, and executions for settlement honesty (`vault` vs `staged`).
+2. Inspect health, timeline, and executions for settlement labels (`vault` vs `staged`).
 3. Do not “fix forward” with more restores until intent is clear.
 4. Rotate keys if the mis-fire suggests prompt injection with data exfil attempts.
 
@@ -265,7 +265,7 @@ The official hosted URL is `https://mcp.aureonlabs.network/mcp`. Connect is URL-
 
 ---
 
-## 11. Honest settlement and integrity
+## 11. Clear settlement and integrity
 
 Security is not only custody; it is also **truthfulness of outcomes**:
 
@@ -273,7 +273,7 @@ Security is not only custody; it is also **truthfulness of outcomes**:
 - Staged settlement is not the same as vault/on-chain completion.
 - Do not coach models to rewrite receipts as “done on-chain” when the API said `staged`.
 
-Integrity failures (lying about settlement) create operator errors that look like security incidents later.
+Integrity failures (misreporting settlement) create operator errors that look like security incidents later.
 
 ---
 
