@@ -12,7 +12,7 @@ Exposes the full `@buildaureon/sdk` surface as tools for Cursor, Claude Desktop,
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-0b0e0d?style=flat-square)](https://modelcontextprotocol.io)
 [![Hosted](https://img.shields.io/badge/hosted-mcp.aureonlabs.network-a8e00d?style=flat-square)](https://mcp.aureonlabs.network/mcp)
-[![Version](https://img.shields.io/badge/version-0.1.15-a8e00d?style=flat-square)](https://github.com/buildaureon)
+[![Version](https://img.shields.io/badge/version-0.1.16-a8e00d?style=flat-square)](https://github.com/buildaureon)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0b0e0d?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933?style=flat-square&logo=nodejs&logoColor=white)](#requirements--installation)
 
@@ -54,9 +54,9 @@ npx -y @buildaureon/mcp
 
 ## What is AUREON MCP?
 
-**AUREON** is a policy and execution layer for capital on **Robinhood Chain**. Agents register continuous financial rules (Financial Compass Objectives), monitor health, and restore allocations with honest settlement receipts rather than one-off swaps that forget intent.
+**AUREON** is a policy and execution layer for capital on **Robinhood Chain**. Agents register continuous financial rules (Financial Compass Objectives), monitor health, and restore allocations with clear settlement receipts.
 
-**`@buildaureon/mcp`** is the agent adapter. It maps every public `@buildaureon/sdk` client method to a named tool (`aureon_ping`, `aureon_create_objective`, `aureon_restore_objective`, …). You can reach that same 63-tool surface in two ways:
+**`@buildaureon/mcp`** is the agent adapter. It maps every public `@buildaureon/sdk` client method to a named tool (`aureon_ping`, `aureon_create_objective`, `aureon_restore_objective`, …). You can reach that same 66-tool surface in two ways:
 
 | Transport | When to use it | How |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ The npm package is the stdio server. The official hosted process is Streamable H
 | Rehearse market shocks | `aureon_apply_market_event`, `aureon_refresh_watchdog` |
 | Manage developer API keys | `aureon_list_api_keys`, `aureon_create_api_key`, … |
 
-**63 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
+**66 tools**: one per public `AureonClient` method. Full schemas: [docs/tools.md](docs/tools.md).
 
 For scripts without MCP, use [`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk). The operator app at [app.aureonlabs.network](https://app.aureonlabs.network) is the mainnet console and stays wallet-Bearer only. SDK and MCP default to mainnet.
 
@@ -99,7 +99,7 @@ Paste this into Cursor `.cursor/mcp.json`. A user key is not required to connect
 }
 ```
 
-Open without a key: `aureon_ping`, `aureon_list_market_presets`, `aureon_validate_receipt`.
+Open without a key: `aureon_ping` and `aureon_validate_receipt`. `aureon_list_market_presets` needs a key.
 
 Wallet tools need **your** issued Developers key on the same URL:
 
@@ -148,8 +148,8 @@ Traditional AI trading scripts execute isolated market orders without context, f
 
 * **Continuous Rules vs. One-off Swaps**: Instead of telling an agent to "buy 0.5 WETH," you register a Financial Compass Objective like *"Maintain 20% WETH weight with 3% tolerance."* The watchdog automatically monitors drift and plans restores when needed.
 * **Non-Custodial Architecture**: Your private keys stay safely in your local wallet host. The MCP server generates unsigned transaction payloads that you review and sign.
-* **Two transports, one tool surface**: Hosted HTTP at `https://mcp.aureonlabs.network/mcp`, or local stdio via `npx -y @buildaureon/mcp`. Same 63 tools. No local database to run.
-* **Honest Settlement Receipts**: Clearly distinguishes between on-chain smart vault settlements (`vault`) and ledger-local staged receipts (`staged`).
+* **Two transports, one tool surface**: Hosted HTTP at `https://mcp.aureonlabs.network/mcp`, or local stdio via `npx -y @buildaureon/mcp`. This build is the same 66 tools on both. The public host lists 66 after this build is deployed. No local database to run.
+* **Clear Settlement Receipts**: Clearly distinguishes between on-chain smart vault settlements (`vault`) and ledger-local staged receipts (`staged`).
 
 ---
 
@@ -200,7 +200,7 @@ flowchart LR
 | Operator utility | Wallet sign-in (Bearer) | Human operators managing vaults and approving manual restores |
 | `@buildaureon/sdk` | Issued API key (+ optional Bearer) | Automated scripts, bots, serverless routines, and products |
 | `@buildaureon/mcp` (stdio) | Same as SDK via host `env` | Local agent adapter you spawn with your issued key |
-| Hosted MCP | URL-only for open tools. Optional `X-Aureon-Api-Key` for your wallet. | Same 63 tools over `https://mcp.aureonlabs.network/mcp` |
+| Hosted MCP | URL-only for `aureon_ping` and `aureon_validate_receipt`. Optional `X-Aureon-Api-Key` for your wallet. | Same 66 tools in this build. The public host lists 66 after deploy: `https://mcp.aureonlabs.network/mcp` |
 
 ### Layer Responsibilities
 
@@ -311,7 +311,7 @@ Deep dive: [docs/auth.md](docs/auth.md).
 
 ## Tool Surface
 
-AUREON MCP exposes **63 tools** covering 100% of the `AureonClient` SDK surface:
+AUREON MCP exposes **66 tools** covering 100% of the `AureonClient` SDK surface:
 
 | Category | Count | Tools Included | Primary Purpose |
 | --- | --- | --- | --- |
@@ -321,6 +321,8 @@ AUREON MCP exposes **63 tools** covering 100% of the `AureonClient` SDK surface:
 | **Objectives** | 4 | `aureon_create_objective`, `aureon_update_objective`, `aureon_pause_objective`, `aureon_resume_objective` | Create, modify, pause, and resume Financial Compass Objectives |
 | **Portfolio** | 3 | `aureon_set_portfolio`, `aureon_clear_portfolio`, `aureon_sync_portfolio` | Synchronize and manage live Capital Book asset marks |
 | **Execution** | 2 | `aureon_run_execution`, `aureon_restore_objective` | Trigger policy rebalancing and execute objective restore plans |
+| **Restoration** | 2 | `aureon_propose_restoration`, `aureon_confirm_restoration` | Unsigned sleeve and reserve steps, then store a receipt the wallet already broadcast. Neither call signs or broadcasts. |
+| **Hire policy** | 2 | `aureon_check_policy`, `aureon_get_policy_check` | Read a financial objective and return allow, refuse, or authorization required |
 | **Market** | 2 | `aureon_apply_market_event`, `aureon_refresh_watchdog` | Rehearse market shocks (e.g. price shifts) against active policy |
 | **Vault** | 2 | `aureon_prepare_vault_deposit`, `aureon_prepare_vault_withdraw` | Generate unsigned steps for non-custodial smart vault deposits/withdrawals |
 | **Developer** | 4 | `aureon_list_api_keys`, `aureon_create_api_key`, `aureon_revoke_api_key`, `aureon_toggle_api_key` | Create, pause, and revoke developer API access keys |
@@ -331,6 +333,15 @@ Full argument schemas: [docs/tools.md](docs/tools.md) · Playbooks: [docs/agent-
 
 - `targetSymbol` and `automationMode` are set at **create** time and cannot be modified via `aureon_update_objective`: recreate the objective instead.
 - Default `automationMode` is `"auto"`. Use `"manual"` only when a human must Approve changes inside the utility web app.
+- `hireLimitEth` and `hireApprovalRequired` are set on create. `aureon_check_policy` reads them. The check does not sign or send.
+
+### Hire policy
+
+`aureon_check_policy` takes `agentId`, `taskId`, `objectiveId`, and an action of type `hire` in `ETH`. The result is `allow`, `refuse`, or `authorization_required`. `aureon_get_policy_check` reads that decision by `actionId`. The caller uses an issued Developers key for the wallet that owns the objective. A hire equal to the cap is inside the limit. A hire above the cap is refused. Inside the cap, with approval required, the user decides.
+
+### Unsigned restoration
+
+`aureon_propose_restoration` takes a sleeve id (`weightBound: "ceiling"`, `profitTakeRatio`) and a reserve id (`weightBound: "floor"`). Both objectives are `manual`. The sleeve step sells the profit-take slice above the cap. The reserve step is added only when the floor is still short. `transactionHash` and `sentBy` stay null.
 
 ---
 
@@ -436,11 +447,11 @@ pnpm --filter @buildaureon/mcp typecheck
 | --- | --- |
 | **[Setup Guide](docs/setup.md)** | Hosted URL first, then Cursor / Claude stdio, npx, source build, troubleshooting |
 | **[Authentication Guide](docs/auth.md)** | Issued API key vs. Wallet Bearer vs. private key boundaries |
-| **[Tools Reference](docs/tools.md)** | Full 63-tool reference with arguments, schemas, and caveats |
+| **[Tools Reference](docs/tools.md)** | Full 66-tool reference with arguments, schemas, and caveats |
 | **[Agent Playbooks](docs/agent-guide.md)** | End-to-end agent decision playbooks, turn templates, and anti-patterns |
 | **[Architecture Deep Dive](docs/architecture.md)** | Module boundaries, file maps, and end-to-end request data flows |
 | **[Security Model](docs/security.md)** | Credential management, threat modeling, and operational safety |
-| **[Changelog](CHANGELOG.md)** | `0.1.15` unsigned restoration. `0.1.14` added financial history. API health `version` is the API, not this package. |
+| **[Changelog](CHANGELOG.md)** | `0.1.16` hire check, SOL priced as ETH, `aureon_confirm_restoration`, 66 tools. `0.1.15` unsigned restoration. `0.1.14` financial history. API health `version` in this tree is `0.2.2`, not this package. |
 | **[`examples/cursor.hosted.mcp.json`](examples/cursor.hosted.mcp.json)** | Cursor config for URL-only hosted MCP |
 | **[`examples/cursor.hosted.user.mcp.json`](examples/cursor.hosted.user.mcp.json)** | Same URL plus `X-Aureon-Api-Key` for your wallet tools |
 | **[`@buildaureon/sdk`](https://github.com/buildaureon/aureon-sdk)** | Core TypeScript SDK documentation, types, and error definitions |
@@ -453,7 +464,7 @@ pnpm --filter @buildaureon/mcp typecheck
 No. You only need an issued `AUREON_API_KEY`. Private keys stay in your host wallet when signing prepare steps.
 
 **Is there only stdio?**  
-No. Official hosted MCP is `https://mcp.aureonlabs.network/mcp` (Streamable HTTP, 63 tools). Connect with the URL alone for ping. Add `X-Aureon-Api-Key` for your wallet tools. Local stdio is `npx -y @buildaureon/mcp` with your issued `AUREON_API_KEY`.
+No. Official hosted MCP is `https://mcp.aureonlabs.network/mcp` (Streamable HTTP). This build is 66 tools. The public host lists 66 after this build is deployed. Connect with the URL alone for `aureon_ping` and `aureon_validate_receipt`. Add `X-Aureon-Api-Key` for your wallet tools. Local stdio is `npx -y @buildaureon/mcp` with your issued `AUREON_API_KEY`.
 
 **Does MCP talk to a local backend server?**  
 No. Both transports call the official API `https://api.aureonlabs.network` on mainnet by default. Set `AUREON_NETWORK=testnet` on a **stdio** process to stay on testnet on that same host.
@@ -462,7 +473,7 @@ No. Both transports call the official API `https://api.aureonlabs.network` on ma
 `staged` is a ledger-local receipt, not an on-chain vault settlement. Always describe settlement receipts accurately in agent responses.
 
 **Can agents use Manual automation mode?**  
-Prefer Automatic (`auto`). Manual mode requires human Approval inside the operator utility app.
+Automatic is the default for a keeper restore. A sleeve and a reserve for `aureon_propose_restoration` are `manual`, so the proposal stays unsigned.
 
 **What happens if an objective breaches its drift tolerance?**  
 The watchdog marks health as breached. Agents call `aureon_get_restore_plan` to inspect the rebalancing steps, then `aureon_restore_objective` to execute the restore.
