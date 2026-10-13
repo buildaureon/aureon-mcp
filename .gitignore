@@ -3,3 +3,6 @@ dist
 build-log.txt
 *.log
 .npmrc
+.env
+.env.*
+!.env.example
