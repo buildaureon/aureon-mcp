@@ -37,6 +37,14 @@ export function registerObjectiveTools(server: McpServer, client: AureonClient) 
         .enum(["ceiling", "floor", "target"])
         .optional()
         .describe("ceiling misses only above the weight, floor only below, target on both sides"),
+      hireLimitEth: z
+        .number()
+        .optional()
+        .describe("Max ETH for one agent hire against this objective"),
+      hireApprovalRequired: z
+        .boolean()
+        .optional()
+        .describe("When true, a hire inside the cap needs user approval"),
       targetSymbol: z
         .string()
         .nullable()
